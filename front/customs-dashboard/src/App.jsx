@@ -1,12 +1,13 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { 
-  Home, 
-  UploadCloud, 
-  Map, 
-  PieChart, 
-  BarChart2, 
-  CheckCircle2, 
-  Circle, 
+import LoginPage from './LoginPage';
+import {
+  Home,
+  UploadCloud,
+  Map,
+  PieChart,
+  BarChart2,
+  CheckCircle2,
+  Circle,
   ArrowRight,
   Layers,
   Bell,
@@ -28,7 +29,8 @@ import {
   Trash2,
   Calculator,
   RefreshCw,
-  Globe
+  Globe,
+  LogOut
 } from 'lucide-react';
 
 // --- 多语言 ---
@@ -1151,6 +1153,7 @@ const ReportView = () => {
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('home');
   const [lang, setLang] = useState('zh');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
   const langs = ['zh', 'en', 'pt'];
   const langLabels = { zh: '中文', en: 'EN', pt: 'PT' };
@@ -1175,6 +1178,10 @@ export default function App() {
   };
 
   const activeLabel = menuItems.find(m => m.key === activeMenu)?.label || '';
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+  }
 
   return (
     <LanguageContext.Provider value={lang}>
@@ -1239,6 +1246,9 @@ export default function App() {
             <button className="text-gray-400 hover:text-gray-600 transition-colors relative">
               <Bell className="w-5 h-5" />
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            </button>
+            <button onClick={() => setIsLoggedIn(false)} className="flex items-center space-x-1 text-gray-400 hover:text-red-500 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors border border-gray-200">
+              <LogOut className="w-4 h-4" />
             </button>
             <div className="h-8 w-px bg-gray-200"></div>
             <div className="flex items-center cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
