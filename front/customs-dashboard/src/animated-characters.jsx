@@ -84,6 +84,11 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  // showPassword 切换时重置眨眼，让眼睛保持完全睁开状态过渡，避免半闭状态闪烁
+  useEffect(() => {
+    setBlinkProgress(0);
+  }, [showPassword]);
+
   useEffect(() => {
     let blinkTimer;
     let blinkStart = null;
@@ -120,14 +125,16 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
   useEffect(() => {
     let rafId;
     let start = null;
-    const DURATION = 350;
+    const DURATION = 450; // 稍微延长，让 peek/shrink 更平滑
+    const target = showPassword ? 1 : 0;
     const fromVal = purpleRectProgress;
 
     const animate = (ts) => {
       if (!start) start = ts;
       const t = Math.min(1, (ts - start) / DURATION);
       const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      setPurpleRectProgress(fromVal + (eased - fromVal));
+      // 正确的 lerp: 从 fromVal 插值到 target
+      setPurpleRectProgress(fromVal + (target - fromVal) * eased);
       if (t < 1) rafId = requestAnimationFrame(animate);
     };
     rafId = requestAnimationFrame(animate);
@@ -176,7 +183,7 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
 
   const purplePos = calculatePosition(purpleRef);
   const blackPos = calculatePosition(blackRef);
-  const orangePos = calculatePosition(orangeRef, 0.65);
+  const orangePos = calculatePosition(orangeRef, 1);
   const yellowPos = calculatePosition(yellowRef, 0.65);
 
   const peek = passwordLength > 0 && showPassword;
@@ -205,30 +212,22 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
         aria-hidden
       >
         <g transform="scale(1.12) translate(-20 -40)">
-        {/* 后：紫色圆角四边形 → peek 时变为矩形往左躲，平滑插值过渡 */}
+        {/* 后：紫色圆角矩形 → peek 时右侧向内收，左边固定不动，呈现"背过身"的视效 */}
         <g ref={purpleRef}>
           {skewAt(185, 350, 0, (
-            <g transform={`translate(${-(purpleRectProgress * 28)}, 0)`}>
-              <defs>
-                <clipPath id="clip-p">
-                  <rect x="130" y="65" width="150" height="240" rx="10" />
-                </clipPath>
-              </defs>
-
-              {/* 矩形目标形状，始终存在 */}
-              <rect x="130" y="65" width="150" height="240" rx="10" fill="#6F32FF" />
-
-              {/* 梯形原始形状，逐步被底部 clip 遮掉露出矩形 */}
-              <path
-                d="M 170 80 Q 170 65 185 65 L 265 65 Q 280 65 280 80 L 240 305 Q 235 307 215 307 L 140 307 Q 130 307 130 305 Z"
+            <g>
+              {/* 紫色身体主体 */}
+              <rect
+                x="130"
+                y="65"
+                width="118"
+                height="240"
+                rx="10"
                 fill="#6F32FF"
-                style={{
-                  clipPath: `inset(0 0 ${(1 - purpleRectProgress) * 100}% 0 round 10px)`,
-                }}
               />
 
               <SvgEye
-                cx={205 + purplePos.faceX * 0.35 + pPeek.dx}
+                cx={189 + purplePos.faceX * 0.35 + pPeek.dx}
                 cy={120 + purplePos.faceY * 0.35 + pPeek.dy}
                 hasWhite
                 mousePos={mousePos}
@@ -238,7 +237,7 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
                 maxOffset={4}
               />
               <SvgEye
-                cx={235 + purplePos.faceX * 0.35 + pPeek.dx}
+                cx={228 + purplePos.faceX * 0.35 + pPeek.dx}
                 cy={120 + purplePos.faceY * 0.35 + pPeek.dy}
                 hasWhite
                 mousePos={mousePos}
@@ -297,7 +296,7 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
                 blinkProgress={0}
                 forceX={dotPeekX}
                 forceY={dotPeekY}
-                maxOffset={3}
+                maxOffset={5}
               />
               <SvgEye
                 cx={145 + orangePos.faceX * 0.3 + oPeek.dx}
@@ -307,7 +306,7 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
                 blinkProgress={0}
                 forceX={dotPeekX}
                 forceY={dotPeekY}
-                maxOffset={3}
+                maxOffset={5}
               />
             </>
           ))}
@@ -339,9 +338,9 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
                 maxOffset={3}
               />
               <line
-                x1={268 + yellowPos.faceX * 0.4}
+                x1={268 + yellowPos.faceX * 0.4 + yPeek.dx}
                 y1="295"
-                x2={312 + yellowPos.faceX * 0.4}
+                x2={312 + yellowPos.faceX * 0.4 + yPeek.dx}
                 y2="295"
                 stroke="#111"
                 strokeWidth="2.5"
