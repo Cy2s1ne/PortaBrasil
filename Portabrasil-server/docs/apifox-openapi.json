@@ -1,0 +1,1131 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PortaBrasil Flask 后端接口",
+    "version": "0.1.0",
+    "description": "PortaBrasil PDF 单据上传、解析入库、业务查询和费用明细接口。可直接导入 Apifox。"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5001",
+      "description": "本地开发服务"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "服务健康检查"
+    },
+    {
+      "name": "Files",
+      "description": "PDF 文件上传、解析、查询"
+    },
+    {
+      "name": "Documents",
+      "description": "解析文本直接入库"
+    },
+    {
+      "name": "Business",
+      "description": "海关业务主表与费用明细查询"
+    },
+    {
+      "name": "Tasks",
+      "description": "PDF 解析任务查询"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "健康检查",
+        "description": "检查 Flask 服务是否正常运行，并返回当前数据库后端类型。",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "服务正常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "examples": {
+                  "ok": {
+                    "summary": "正常响应",
+                    "value": {
+                      "status": "ok",
+                      "database": "mysql"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/files/upload": {
+      "post": {
+        "tags": ["Files"],
+        "summary": "上传 PDF 文件",
+        "description": "上传 PDF。默认 parse=true，会立即调用智谱 PDF 解析并将结果写入数据库；parse=false 时只保存文件记录。",
+        "operationId": "uploadPdfFile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF 文件"
+                  },
+                  "parse": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "是否上传后立即解析入库"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/pdf"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "重复文件或已有文件返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "文件上传成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                },
+                "examples": {
+                  "uploadedWithoutParse": {
+                    "summary": "parse=false",
+                    "value": {
+                      "duplicated": false,
+                      "file": {
+                        "id": 1,
+                        "file_name": "p2s.pdf",
+                        "file_path": "/path/to/uploads/20260415/xxx.pdf",
+                        "file_size": 155514,
+                        "file_hash": "sha256hex",
+                        "page_count": 1,
+                        "parse_status": "PENDING",
+                        "upload_time": "2026-04-15 22:00:00",
+                        "remark": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/files/{file_id}/parse": {
+      "post": {
+        "tags": ["Files"],
+        "summary": "解析已有 PDF 文件",
+        "description": "对已上传的 PDF 文件发起解析任务，解析成功后写入 customs_business 和 customs_business_fee_item。",
+        "operationId": "parseExistingFile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "解析成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseFileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/files": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "查询 PDF 文件列表",
+        "description": "分页查询上传过的 PDF 文件，可按解析状态筛选。",
+        "operationId": "listFiles",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "每页数量，最大 100",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "偏移量",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "解析状态",
+            "schema": {
+              "$ref": "#/components/schemas/ParseStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "文件列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/files/{file_id}": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "查询 PDF 文件详情",
+        "description": "查询 PDF 文件记录、关联解析任务和来源业务记录。",
+        "operationId": "getFileDetail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "文件详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/documents/from-text": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "解析文本直接入库",
+        "description": "把智谱返回的 content 或已有 OCR 文本直接解析并写入数据库。适合先绕过 PDF 上传流程测试规则解析。",
+        "operationId": "createDocumentFromText",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDocumentFromTextRequest"
+              },
+              "examples": {
+                "sample": {
+                  "summary": "最小示例",
+                  "value": {
+                    "raw_text": "LOGIMEX COMERCIO EXTERIOR LTDA ... S/Ref.: 20250528000158 ... TOTAL => 228.389,13 200.897,37 ...",
+                    "file_id": null,
+                    "source_page_no": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "业务记录写入成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/api/business": {
+      "get": {
+        "tags": ["Business"],
+        "summary": "查询业务列表",
+        "description": "分页查询 customs_business。q 会匹配 S/Ref、Invoice、客户名称、MAWB/MBL。",
+        "operationId": "listBusiness",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "搜索关键字",
+            "schema": {
+              "type": "string",
+              "example": "20250528000158"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "每页数量，最大 100",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "偏移量",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "业务列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/business/{business_id}": {
+      "get": {
+        "tags": ["Business"],
+        "summary": "查询业务详情",
+        "description": "查询单条 customs_business，并带出 fee_items。",
+        "operationId": "getBusinessDetail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/BusinessId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "业务详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/business/{business_id}/fees": {
+      "get": {
+        "tags": ["Business"],
+        "summary": "查询业务费用明细",
+        "description": "查询指定业务下的 customs_business_fee_item 列表。",
+        "operationId": "listBusinessFees",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/BusinessId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "费用明细列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "查询解析任务详情",
+        "description": "查询 pdf_parse_task 记录，包括任务状态、错误信息和 raw_result。",
+        "operationId": "getTaskDetail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TaskId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "任务详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "FileId": {
+        "name": "file_id",
+        "in": "path",
+        "required": true,
+        "description": "pdf_file.id",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "BusinessId": {
+        "name": "business_id",
+        "in": "path",
+        "required": true,
+        "description": "customs_business.id",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "TaskId": {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "description": "pdf_parse_task.id",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "请求参数错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "badRequest": {
+                "value": {
+                  "error": "缺少 multipart 字段 file"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "资源不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "notFound": {
+                "value": {
+                  "error": "业务记录不存在"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "服务端错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "missingKey": {
+                "value": {
+                  "error": "ZHIPU_API_KEY 未配置，无法调用智谱 PDF 解析接口"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ParseStatus": {
+        "type": "string",
+        "enum": ["PENDING", "PROCESSING", "SUCCESS", "FAILED"],
+        "example": "SUCCESS"
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "database": {
+            "type": "string",
+            "enum": ["mysql", "sqlite"],
+            "example": "mysql"
+          }
+        },
+        "required": ["status", "database"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "错误信息"
+          }
+        },
+        "required": ["error"]
+      },
+      "PdfFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "file_name": {
+            "type": "string",
+            "example": "p2s.pdf"
+          },
+          "file_path": {
+            "type": "string",
+            "example": "/Users/leo/Documents/CODE/PortaBrasil/Portabrasil-server/uploads/20260415/xxx.pdf"
+          },
+          "file_size": {
+            "type": "integer",
+            "example": 155514
+          },
+          "file_hash": {
+            "type": "string",
+            "example": "3c5f2f0d2b7b..."
+          },
+          "page_count": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "parse_status": {
+            "$ref": "#/components/schemas/ParseStatus"
+          },
+          "upload_time": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-04-15 22:00:00"
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        }
+      },
+      "ParseTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "file_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "task_no": {
+            "type": "string",
+            "example": "2f6b0f5f8bbf43f39f410e01c12a99c7"
+          },
+          "parser_type": {
+            "type": "string",
+            "example": "LLM"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ParseStatus"
+          },
+          "start_time": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-04-15 22:01:00"
+          },
+          "end_time": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-04-15 22:01:12"
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "raw_result": {
+            "type": "string",
+            "nullable": true,
+            "description": "智谱原始解析结果 JSON 字符串或错误信息",
+            "example": "{\"status\":\"succeeded\",\"content\":\"...\"}"
+          },
+          "created_time": {
+            "type": "string",
+            "example": "2026-04-15 22:01:00"
+          },
+          "updated_time": {
+            "type": "string",
+            "example": "2026-04-15 22:01:12"
+          }
+        }
+      },
+      "CustomsBusiness": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "s_ref": {
+            "type": "string",
+            "example": "20250528000158"
+          },
+          "n_ref": {
+            "type": "string",
+            "nullable": true,
+            "example": "2-12626/25"
+          },
+          "document_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "12626"
+          },
+          "invoice_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "20250528000158"
+          },
+          "nf_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "000000000014069"
+          },
+          "process_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "2-12626/25"
+          },
+          "business_type": {
+            "type": "string",
+            "nullable": true,
+            "example": "IMPORT"
+          },
+          "trade_company": {
+            "type": "string",
+            "nullable": true,
+            "example": "HAOY TRADING"
+          },
+          "customer_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "LAIOUN'S IMPORTACAO E EXPORTACAO LTDA ME"
+          },
+          "customer_address": {
+            "type": "string",
+            "nullable": true,
+            "example": "RUA MARIA RODRIGUES No.:164"
+          },
+          "customer_city": {
+            "type": "string",
+            "nullable": true,
+            "example": "RIO DE JANEIRO"
+          },
+          "customer_state": {
+            "type": "string",
+            "nullable": true,
+            "example": "RJ"
+          },
+          "customer_zip_code": {
+            "type": "string",
+            "nullable": true,
+            "example": "21031-490"
+          },
+          "customer_tax_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "09.089.839/0001-12"
+          },
+          "issuer_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "LOGIMEX COMERCIO EXTERIOR LTDA"
+          },
+          "issuer_tax_no": {
+            "type": "string",
+            "nullable": true,
+            "example": "02.155.413/0001-70"
+          },
+          "mawb_mbl": {
+            "type": "string",
+            "nullable": true,
+            "example": "YMJAB232097847"
+          },
+          "hawb_hbl": {
+            "type": "string",
+            "nullable": true,
+            "example": "YMJAB232097847"
+          },
+          "di_duimp_due": {
+            "type": "string",
+            "nullable": true,
+            "example": "25/1439746-3"
+          },
+          "registration_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2025-07-01"
+          },
+          "arrival_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2025-06-25"
+          },
+          "customs_clearance_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2025-07-01"
+          },
+          "loading_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2025-07-03"
+          },
+          "destination": {
+            "type": "string",
+            "nullable": true,
+            "example": "RIO DE JANEIRO"
+          },
+          "vessel_flight_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "EVER FUTURE"
+          },
+          "gross_weight": {
+            "type": "string",
+            "nullable": true,
+            "description": "Decimal 以字符串返回",
+            "example": "15280.000"
+          },
+          "volume_count": {
+            "type": "integer",
+            "nullable": true,
+            "example": 191
+          },
+          "cargo_desc": {
+            "type": "string",
+            "nullable": true,
+            "example": "X12-10"
+          },
+          "freight_currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "USD"
+          },
+          "freight_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "2284.71"
+          },
+          "fob_currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "USD"
+          },
+          "fob_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "45656.29"
+          },
+          "cif_currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "USD"
+          },
+          "cif_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "47941.00"
+          },
+          "cif_brl_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "261618.80"
+          },
+          "dollar_rate": {
+            "type": "string",
+            "nullable": true,
+            "example": "5.4571000"
+          },
+          "euro_rate": {
+            "type": "string",
+            "nullable": true,
+            "example": "0.0000000"
+          },
+          "total_credit": {
+            "type": "string",
+            "nullable": true,
+            "example": "228389.13"
+          },
+          "total_debit": {
+            "type": "string",
+            "nullable": true,
+            "example": "200897.37"
+          },
+          "balance_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "27491.76"
+          },
+          "balance_direction": {
+            "type": "string",
+            "nullable": true,
+            "example": "FAVOR"
+          },
+          "source_file_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "source_page_no": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "data_status": {
+            "type": "string",
+            "example": "DRAFT"
+          },
+          "created_time": {
+            "type": "string",
+            "example": "2026-04-15 22:02:00"
+          },
+          "updated_time": {
+            "type": "string",
+            "example": "2026-04-15 22:02:00"
+          }
+        }
+      },
+      "FeeItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "business_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "fee_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2025-06-26"
+          },
+          "fee_code": {
+            "type": "string",
+            "nullable": true,
+            "example": "112"
+          },
+          "fee_name": {
+            "type": "string",
+            "example": "CAPATAZIA"
+          },
+          "credit_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "debit_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "600.00"
+          },
+          "line_no": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "raw_text": {
+            "type": "string",
+            "nullable": true,
+            "example": "26.06.2025 112 CAPATAZIA 600,00"
+          },
+          "created_time": {
+            "type": "string",
+            "example": "2026-04-15 22:02:00"
+          }
+        }
+      },
+      "CustomsBusinessWithFees": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CustomsBusiness"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "fee_items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FeeItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateDocumentFromTextRequest": {
+        "type": "object",
+        "required": ["raw_text"],
+        "properties": {
+          "raw_text": {
+            "type": "string",
+            "description": "PDF 解析后的完整文本。也兼容 content 或 text 字段。",
+            "example": "LOGIMEX COMERCIO EXTERIOR LTDA ... S/Ref.: 20250528000158 ..."
+          },
+          "file_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "可选，关联 pdf_file.id",
+            "example": 1
+          },
+          "source_page_no": {
+            "type": "integer",
+            "nullable": true,
+            "description": "可选，来源页码",
+            "example": 1
+          }
+        }
+      },
+      "FileUploadResponse": {
+        "type": "object",
+        "properties": {
+          "duplicated": {
+            "type": "boolean",
+            "example": false
+          },
+          "file": {
+            "$ref": "#/components/schemas/PdfFile"
+          },
+          "task_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "business": {
+            "$ref": "#/components/schemas/CustomsBusinessWithFees"
+          }
+        }
+      },
+      "ParseFileResponse": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/PdfFile"
+          },
+          "task_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "business": {
+            "$ref": "#/components/schemas/CustomsBusinessWithFees"
+          }
+        }
+      },
+      "FileListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PdfFile"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 20
+          },
+          "offset": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      },
+      "FileDetailResponse": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/PdfFile"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ParseTask"
+            }
+          },
+          "businesses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomsBusiness"
+            }
+          }
+        }
+      },
+      "BusinessListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomsBusiness"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 20
+          },
+          "offset": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      },
+      "BusinessDetailResponse": {
+        "type": "object",
+        "properties": {
+          "business": {
+            "$ref": "#/components/schemas/CustomsBusinessWithFees"
+          }
+        }
+      },
+      "FeeListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeeItem"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "example": 21
+          }
+        }
+      },
+      "TaskDetailResponse": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/ParseTask"
+          }
+        }
+      }
+    }
+  }
+}

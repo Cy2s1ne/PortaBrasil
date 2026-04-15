@@ -1,0 +1,129 @@
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python lock files
+uv.lock
+Pipfile.lock
+poetry.lock
+
+# ========== Node.js / Frontend ==========
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+build/
+
+# ========== Environment ==========
+.env
+.env.local
+.env.*.local
+.env/
+*.env
+
+# ========== macOS ==========
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ========== Logs ==========
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.out
+*.err
+
+# ========== Testing ==========
+coverage/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.junit
+
+# ========== IDEs ==========
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*.swn
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========== Jupyter Notebook ==========
+.ipynb_checkpoints
+*.ipynb
+
+# ========== Python Tools ==========
+.mypy_cache/
+.pytype/
+cython_debug/
+
+# ========== Project Specific ==========
+*.pdf
+Portabrasil-server/instance/
+Portabrasil-server/uploads/
+
+# ========== Other ==========
+.cache/
+*.bak
+*.tmp
+*.temp
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+.DS_Store
