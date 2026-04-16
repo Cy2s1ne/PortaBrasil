@@ -3,6 +3,7 @@ import os
 from flask import Flask
 
 from app.core.responses import api_response
+from app.routes.ai_review import bp as ai_review_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.business import bp as business_bp
 from app.routes.cost import bp as cost_bp
@@ -62,5 +63,6 @@ def create_app() -> Flask:
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(cost_bp)
+    app.register_blueprint(ai_review_bp)
 
     return app

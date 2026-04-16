@@ -245,6 +245,87 @@ CREATE TABLE IF NOT EXISTS customs_cost_item (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cost_item_cost_record_id ON customs_cost_item(cost_record_id);
+
+CREATE TABLE IF NOT EXISTS ai_audit_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER NOT NULL,
+    cost_record_id INTEGER,
+    source TEXT NOT NULL DEFAULT 'RULE',
+    model_name TEXT,
+    status TEXT NOT NULL DEFAULT 'PROCESSING',
+    risk_level TEXT,
+    score REAL,
+    summary TEXT,
+    checks_json TEXT,
+    input_json TEXT,
+    raw_output TEXT,
+    error_message TEXT,
+    created_by INTEGER,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(business_id) REFERENCES customs_business(id) ON DELETE CASCADE,
+    FOREIGN KEY(cost_record_id) REFERENCES customs_cost_record(id) ON DELETE SET NULL,
+    FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_audit_run_business_id ON ai_audit_run(business_id);
+CREATE INDEX IF NOT EXISTS idx_ai_audit_run_status ON ai_audit_run(status);
+CREATE INDEX IF NOT EXISTS idx_ai_audit_run_created_time ON ai_audit_run(created_time);
+
+CREATE TABLE IF NOT EXISTS ai_audit_finding (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    audit_run_id INTEGER NOT NULL,
+    finding_type TEXT NOT NULL DEFAULT 'RISK',
+    severity TEXT NOT NULL DEFAULT 'MEDIUM',
+    rule_code TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    evidence TEXT,
+    suggestion TEXT,
+    amount TEXT,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(audit_run_id) REFERENCES ai_audit_run(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_audit_finding_run_id ON ai_audit_finding(audit_run_id);
+CREATE INDEX IF NOT EXISTS idx_ai_audit_finding_severity ON ai_audit_finding(severity);
+
+CREATE TABLE IF NOT EXISTS ai_finance_review (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cost_record_id INTEGER NOT NULL,
+    source TEXT NOT NULL DEFAULT 'RULE',
+    model_name TEXT,
+    status TEXT NOT NULL DEFAULT 'PROCESSING',
+    health_level TEXT,
+    score REAL,
+    summary TEXT,
+    metrics_json TEXT,
+    input_json TEXT,
+    raw_output TEXT,
+    error_message TEXT,
+    created_by INTEGER,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(cost_record_id) REFERENCES customs_cost_record(id) ON DELETE CASCADE,
+    FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_finance_review_cost_record_id ON ai_finance_review(cost_record_id);
+CREATE INDEX IF NOT EXISTS idx_ai_finance_review_status ON ai_finance_review(status);
+CREATE INDEX IF NOT EXISTS idx_ai_finance_review_created_time ON ai_finance_review(created_time);
+
+CREATE TABLE IF NOT EXISTS ai_finance_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    finance_review_id INTEGER NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'MEDIUM',
+    title TEXT NOT NULL,
+    description TEXT,
+    recommendation TEXT,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(finance_review_id) REFERENCES ai_finance_review(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_finance_item_review_id ON ai_finance_item(finance_review_id);
 """
 
 
