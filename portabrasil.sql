@@ -273,3 +273,201 @@ SELECT u.id, r.id
 FROM users u
 JOIN roles r ON r.role_code = 'SUPER_ADMIN'
 WHERE u.username = 'admin';
+
+-- =========================================================
+-- 10. 清关流程主记录表
+-- =========================================================
+DROP TABLE IF EXISTS customs_process_step;
+DROP TABLE IF EXISTS customs_activity;
+DROP TABLE IF EXISTS customs_process_record;
+
+CREATE TABLE customs_process_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    business_id BIGINT UNSIGNED NULL COMMENT '可选关联 customs_business.id', -- 修改点：增加 UNSIGNED
+    bl_no VARCHAR(64) NOT NULL UNIQUE COMMENT '提单号',
+    goods_desc VARCHAR(255) NULL COMMENT '货物描述',
+    declaration_date DATE NULL COMMENT '申报日期',
+    port_name VARCHAR(100) NULL COMMENT '港口',
+    overall_status VARCHAR(20) NOT NULL DEFAULT 'PROCESSING' COMMENT 'PROCESSING/CLEARED/INSPECTION',
+    created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_overall_status (overall_status),
+    KEY idx_declaration_date (declaration_date),
+    CONSTRAINT fk_process_business
+        FOREIGN KEY (business_id) REFERENCES customs_business(id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='清关流程主记录表';
+
+-- =========================================================
+-- 11. 清关流程步骤表（10步）
+-- =========================================================
+CREATE TABLE customs_process_step (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    process_id BIGINT NOT NULL COMMENT '关联 customs_process_record.id',
+    step_no TINYINT NOT NULL COMMENT '步骤号 1-10',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/COMPLETE',
+    completion_time VARCHAR(20) NULL COMMENT '完成时间（前端格式）',
+    step_desc VARCHAR(255) NULL COMMENT '步骤描述',
+    created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_process_step (process_id, step_no),
+    KEY idx_process_id (process_id),
+    KEY idx_step_status (status),
+    CONSTRAINT fk_process_step_record
+        FOREIGN KEY (process_id) REFERENCES customs_process_record(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='清关流程步骤表';
+
+-- =========================================================
+-- 12. 首页动态表
+-- =========================================================
+CREATE TABLE customs_activity (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    activity_type VARCHAR(20) NOT NULL COMMENT 'ALERT/SUCCESS/INFO',
+    title VARCHAR(120) NOT NULL COMMENT '动态标题',
+    description VARCHAR(255) NOT NULL COMMENT '动态描述',
+    related_process_id BIGINT NULL COMMENT '可选关联流程记录',
+    occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
+    KEY idx_occurred_at (occurred_at),
+    CONSTRAINT fk_activity_process
+        FOREIGN KEY (related_process_id) REFERENCES customs_process_record(id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='首页动态表';
+
+INSERT INTO customs_process_record (bl_no, goods_desc, declaration_date, port_name, overall_status) VALUES
+('BR2023082401', '工业机械零件', '2023-08-24', 'Santos (SSZ)', 'PROCESSING'),
+('BR2023082109', '电子消费产品', '2023-08-21', 'Paranaguá (PNG)', 'CLEARED'),
+('BR2023081944', '纺织原材料', '2023-08-19', 'Rio de Janeiro', 'INSPECTION'),
+('BR2023081522', '医疗器械设备', '2023-08-15', 'Santos (SSZ)', 'CLEARED'),
+('BR2023081011', '汽车零配件', '2023-08-10', 'Itajaí (ITJ)', 'CLEARED');
+
+INSERT INTO customs_process_step (process_id, step_no, status, completion_time, step_desc)
+SELECT p.id, s.step_no,
+    CASE
+        WHEN p.overall_status = 'CLEARED' THEN 'COMPLETE'
+        WHEN p.overall_status = 'INSPECTION' AND s.step_no <= 6 THEN 'COMPLETE'
+        WHEN p.overall_status = 'PROCESSING' AND s.step_no <= 3 THEN 'COMPLETE'
+        ELSE 'PENDING'
+    END AS step_status,
+    CASE
+        WHEN p.overall_status = 'CLEARED' THEN CONCAT('08-', LPAD(s.step_no + 10, 2, '0'), ' 08:10')
+        WHEN p.overall_status = 'INSPECTION' AND s.step_no <= 6 THEN CONCAT('08-', LPAD(s.step_no + 10, 2, '0'), ' 08:10')
+        WHEN p.overall_status = 'PROCESSING' AND s.step_no <= 3 THEN CONCAT('08-', LPAD(s.step_no + 20, 2, '0'), ' 08:10')
+        ELSE NULL
+    END AS completion_time,
+    CONCAT(p.bl_no, ' - step ', s.step_no) AS step_desc
+FROM customs_process_record p
+JOIN (
+    SELECT 1 AS step_no UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+    UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
+) s;
+
+INSERT INTO customs_activity (activity_type, title, description) VALUES
+('ALERT', '海关查验通知', '集装箱号 TCNU8473629 被抽中例行查验。'),
+('SUCCESS', '税费计算完成', '提单号 BR2023082401 关税已计算完成，等待支付。'),
+('INFO', '文件审核通过', '商业发票和装箱单已通过巴西海关审核系统 (Siscomex)。');
+
+-- =========================================================
+-- 13. 汇率缓存表
+-- =========================================================
+DROP TABLE IF EXISTS fx_rate_cache;
+CREATE TABLE fx_rate_cache (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    base_currency VARCHAR(10) NOT NULL,
+    quote_currency VARCHAR(10) NOT NULL,
+    rate DECIMAL(18,6) NOT NULL,
+    source VARCHAR(50) DEFAULT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_fx_pair (base_currency, quote_currency),
+    KEY idx_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='汇率缓存表';
+
+-- =========================================================
+-- 14. 成本分析主表
+-- =========================================================
+DROP TABLE IF EXISTS customs_cost_item;
+DROP TABLE IF EXISTS customs_cost_record;
+
+CREATE TABLE customs_cost_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    process_record_id BIGINT NULL COMMENT '可选关联 customs_process_record.id',
+    record_no VARCHAR(64) NOT NULL COMMENT '成本记录编号',
+    customs_fee DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '海关总费用',
+    refund_fee DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '退款费用',
+    usd_amount DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '美元金额',
+    usd_rate DECIMAL(18,6) NOT NULL DEFAULT 1 COMMENT '美元兑 BRL 汇率',
+    other_fees DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '其它附加费用',
+    total_qty DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '商品总数量',
+    total_base DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '总成本基数',
+    per_unit_cost DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '每件商品成本',
+    currency VARCHAR(10) NOT NULL DEFAULT 'BRL' COMMENT '币种',
+    note VARCHAR(500) NULL COMMENT '备注',
+    created_by BIGINT NULL COMMENT '创建人 users.id',
+    created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_record_no (record_no),
+    KEY idx_process_record_id (process_record_id),
+    KEY idx_created_time (created_time),
+    CONSTRAINT fk_cost_record_process
+        FOREIGN KEY (process_record_id) REFERENCES customs_process_record(id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_cost_record_user
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成本分析主表';
+
+-- =========================================================
+-- 15. 成本分析商品明细表
+-- =========================================================
+CREATE TABLE customs_cost_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    cost_record_id BIGINT NOT NULL COMMENT '关联 customs_cost_record.id',
+    line_no INT NULL COMMENT '行号',
+    product_name VARCHAR(255) NULL COMMENT '商品名称',
+    qty DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '数量',
+    allocation_cost DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '分摊成本',
+    unit_cost DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '单件成本',
+    created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_cost_record_id (cost_record_id),
+    CONSTRAINT fk_cost_item_record
+        FOREIGN KEY (cost_record_id) REFERENCES customs_cost_record(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成本分析商品明细表';
+
+INSERT INTO fx_rate_cache (base_currency, quote_currency, rate, source, updated_at)
+VALUES ('USD', 'BRL', 5.120000, 'seed', NOW());
+
+INSERT INTO customs_cost_record (
+    process_record_id, record_no, customs_fee, refund_fee, usd_amount, usd_rate, other_fees,
+    total_qty, total_base, per_unit_cost, currency, note, created_by
+)
+SELECT
+    p.id,
+    CONCAT('COST-', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')),
+    125000.0000,
+    2000.0000,
+    3000.0000,
+    5.120000,
+    1800.0000,
+    600.0000,
+    140160.0000,
+    233.6000,
+    'BRL',
+    '初始化示例成本记录',
+    u.id
+FROM customs_process_record p
+JOIN users u ON u.username = 'admin'
+ORDER BY p.id ASC
+LIMIT 1;
+
+INSERT INTO customs_cost_item (cost_record_id, line_no, product_name, qty, allocation_cost, unit_cost)
+SELECT id, 1, '工业机械零件A', 250.0000, 58400.0000, 233.6000
+FROM customs_cost_record
+ORDER BY id DESC
+LIMIT 1;
+
+INSERT INTO customs_cost_item (cost_record_id, line_no, product_name, qty, allocation_cost, unit_cost)
+SELECT id, 2, '工业机械零件B', 350.0000, 81760.0000, 233.6000
+FROM customs_cost_record
+ORDER BY id DESC
+LIMIT 1;

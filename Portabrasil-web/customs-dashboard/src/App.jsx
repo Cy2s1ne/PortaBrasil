@@ -1,9 +1,9 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import LoginPage from './LoginPage';
 import {
   Home,
   UploadCloud,
-  Map,
+  Map as MapIcon,
   PieChart,
   BarChart2,
   CheckCircle2,
@@ -241,6 +241,33 @@ const clearAuthStorage = () => {
   sessionStorage.removeItem(AUTH_STORAGE_KEY);
 };
 
+const buildAuthHeaders = (token, headers = {}) => ({
+  ...headers,
+  Authorization: `Bearer ${token}`,
+});
+
+const fetchJSON = async (url, options = {}) => {
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || `Request failed: ${response.status}`);
+  }
+  return data;
+};
+
+const formatCurrencyBRL = (value) => {
+  const number = Number(value || 0);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number);
+};
+
+const formatFileSize = (bytes) => {
+  const size = Number(bytes || 0);
+  if (size <= 0) return '0 B';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 // --- 数据模型 & 共享组件 ---
 
 const SidebarItem = ({ icon: Icon, label, isActive, onClick }) => {
@@ -262,29 +289,95 @@ const SidebarItem = ({ icon: Icon, label, isActive, onClick }) => {
 // --- 页面视图组件 ---
 
 // 1. 首页视图
-const HomeView = () => {
+const HomeView = ({ authToken }) => {
   const t = useT();
+  const [overview, setOverview] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!authToken) return;
+    let active = true;
+    fetchJSON(`${API_BASE_URL}/api/dashboard/overview`, {
+      headers: buildAuthHeaders(authToken),
+    })
+      .then((data) => {
+        if (active) {
+          setOverview(data || null);
+          setError('');
+        }
+      })
+      .catch((err) => {
+        if (active) setError(err.message || 'failed');
+      });
+    return () => {
+      active = false;
+    };
+  }, [authToken]);
+
+  const stats = overview?.stats || {
+    in_progress: 0,
+    taxes_due: 0,
+    anomaly: 0,
+    done_month: 0,
+  };
+  const kanban = overview?.kanban || { items: [], total: 0, normal: 0, anomaly: 0 };
+  const stepCountMap = new Map((kanban.items || []).map((item) => [Number(item.step_no), Number(item.count || 0)]));
+  const activities = (overview?.activities || []).slice(0, 10);
+
+  const cols = [
+    { id: 1, titleKey: 'step1', color: { topBar: 'bg-violet-500', card: 'bg-gradient-to-b from-violet-50 to-white border-violet-300', label: 'text-violet-600', count: 'text-violet-600', unit: 'text-violet-500' } },
+    { id: 2, titleKey: 'step2', color: { topBar: 'bg-blue-500', card: 'bg-gradient-to-b from-blue-50 to-white border-blue-300', label: 'text-blue-600', count: 'text-blue-600', unit: 'text-blue-500' } },
+    { id: 3, titleKey: 'step3', color: { topBar: 'bg-cyan-500', card: 'bg-gradient-to-b from-cyan-50 to-white border-cyan-300', label: 'text-cyan-600', count: 'text-cyan-600', unit: 'text-cyan-500' } },
+    { id: 4, titleKey: 'step4', color: { topBar: 'bg-teal-500', card: 'bg-gradient-to-b from-teal-50 to-white border-teal-300', label: 'text-teal-600', count: 'text-teal-600', unit: 'text-teal-500' } },
+    { id: 5, titleKey: 'step5', color: { topBar: 'bg-green-500', card: 'bg-gradient-to-b from-green-50 to-white border-green-300', label: 'text-green-600', count: 'text-green-600', unit: 'text-green-500' } },
+    { id: 6, titleKey: 'step6', color: { topBar: 'bg-red-500', card: 'bg-gradient-to-b from-red-50 to-white border-red-300', label: 'text-red-600', count: 'text-red-600', unit: 'text-red-500' } },
+    { id: 7, titleKey: 'step7', color: { topBar: 'bg-amber-500', card: 'bg-gradient-to-b from-amber-50 to-white border-amber-300', label: 'text-amber-600', count: 'text-amber-600', unit: 'text-amber-500' } },
+    { id: 8, titleKey: 'step8', color: { topBar: 'bg-orange-500', card: 'bg-gradient-to-b from-orange-50 to-white border-orange-300', label: 'text-orange-600', count: 'text-orange-600', unit: 'text-orange-500' } },
+    { id: 9, titleKey: 'step9', color: { topBar: 'bg-pink-500', card: 'bg-gradient-to-b from-pink-50 to-white border-pink-300', label: 'text-pink-600', count: 'text-pink-600', unit: 'text-pink-500' } },
+    { id: 10, titleKey: 'step10', color: { topBar: 'bg-indigo-500', card: 'bg-gradient-to-b from-indigo-50 to-white border-indigo-300', label: 'text-indigo-600', count: 'text-indigo-600', unit: 'text-indigo-500' } },
+  ];
+
+  const renderRow = (items) => (
+    <div className="grid grid-cols-5 gap-3">
+      {items.map((col) => {
+        const c = col.color;
+        const count = stepCountMap.get(col.id) || 0;
+        return (
+          <div key={col.id} className={`flex flex-col rounded-xl border-2 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 ${c.card}`}>
+            <div className={`h-1.5 w-full ${c.topBar}`}></div>
+            <div className="px-4 py-4 flex flex-col items-center text-center">
+              <span className={`text-xs font-bold uppercase tracking-widest mb-2 ${c.label}`}>STEP {col.id}</span>
+              <div className={`text-5xl font-black leading-none mb-1 ${c.count}`}>{count}</div>
+              <div className={`text-xs font-semibold mb-3 ${c.unit}`}>{t.kanban_unit}</div>
+              <div className="text-sm font-bold text-gray-700 leading-snug">{t[col.titleKey]}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const statCards = [
+    { titleKey: 'stat_inProgress', value: stats.in_progress || 0, icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { titleKey: 'stat_taxes', value: formatCurrencyBRL(stats.taxes_due), icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-50' },
+    { titleKey: 'stat_anomaly', value: stats.anomaly || 0, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+    { titleKey: 'stat_done', value: stats.done_month || 0, icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* 欢迎模块 */}
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.welcome}</h2>
-          <p className="text-gray-500">{t.welcomeSub(3, 1)}</p>
+          <p className="text-gray-500">{t.welcomeSub(stats.in_progress || 0, stats.anomaly || 0)}</p>
         </div>
         <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
           {t.newDeclaration}
         </button>
       </div>
 
-      {/* 数据概览卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { titleKey: 'stat_inProgress', value: '12', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { titleKey: 'stat_taxes', value: 'R$ 45,200', icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-50' },
-          { titleKey: 'stat_anomaly', value: '2', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
-          { titleKey: 'stat_done', value: '156', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
-        ].map((stat, i) => (
+        {statCards.map((stat, i) => (
           <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
             <div className={`p-4 rounded-xl ${stat.bg}`}>
               <stat.icon className={`w-7 h-7 ${stat.color}`} />
@@ -297,59 +390,20 @@ const HomeView = () => {
         ))}
       </div>
 
-      {/* 流程看板 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="mb-5">
           <h3 className="text-lg font-bold text-gray-800">{t.kanban_title}</h3>
           <p className="text-xs text-gray-400 mt-0.5">{t.kanban_desc}</p>
         </div>
-
-        {/* 泳道看板 */}
-        {(() => {
-          const cols = [
-            { id: 1,  titleKey: 'step1',  count: 8,  color: { topBar: 'bg-violet-500',  card: 'bg-gradient-to-b from-violet-50 to-white border-violet-300',  label: 'text-violet-600',  count: 'text-violet-600',  unit: 'text-violet-500'  } },
-            { id: 2,  titleKey: 'step2',  count: 6,  color: { topBar: 'bg-blue-500',    card: 'bg-gradient-to-b from-blue-50 to-white border-blue-300',      label: 'text-blue-600',    count: 'text-blue-600',    unit: 'text-blue-500'    } },
-            { id: 3,  titleKey: 'step3',  count: 5,  color: { topBar: 'bg-cyan-500',    card: 'bg-gradient-to-b from-cyan-50 to-white border-cyan-300',      label: 'text-cyan-600',    count: 'text-cyan-600',    unit: 'text-cyan-500'    } },
-            { id: 4,  titleKey: 'step4',  count: 4,  color: { topBar: 'bg-teal-500',    card: 'bg-gradient-to-b from-teal-50 to-white border-teal-300',      label: 'text-teal-600',    count: 'text-teal-600',    unit: 'text-teal-500'    } },
-            { id: 5,  titleKey: 'step5',  count: 3,  color: { topBar: 'bg-green-500',   card: 'bg-gradient-to-b from-green-50 to-white border-green-300',    label: 'text-green-600',   count: 'text-green-600',   unit: 'text-green-500'   } },
-            { id: 6,  titleKey: 'step6',  count: 2,  color: { topBar: 'bg-red-500',     card: 'bg-gradient-to-b from-red-50 to-white border-red-300',        label: 'text-red-600',     count: 'text-red-600',     unit: 'text-red-500'     } },
-            { id: 7,  titleKey: 'step7',  count: 3,  color: { topBar: 'bg-amber-500',   card: 'bg-gradient-to-b from-amber-50 to-white border-amber-300',    label: 'text-amber-600',   count: 'text-amber-600',   unit: 'text-amber-500'   } },
-            { id: 8,  titleKey: 'step8',  count: 5,  color: { topBar: 'bg-orange-500',  card: 'bg-gradient-to-b from-orange-50 to-white border-orange-300',  label: 'text-orange-600',  count: 'text-orange-600',  unit: 'text-orange-500'  } },
-            { id: 9,  titleKey: 'step9',  count: 7,  color: { topBar: 'bg-pink-500',    card: 'bg-gradient-to-b from-pink-50 to-white border-pink-300',      label: 'text-pink-600',    count: 'text-pink-600',    unit: 'text-pink-500'    } },
-            { id: 10, titleKey: 'step10', count: 4,  color: { topBar: 'bg-indigo-500',  card: 'bg-gradient-to-b from-indigo-50 to-white border-indigo-300',  label: 'text-indigo-600',  count: 'text-indigo-600',  unit: 'text-indigo-500'  } },
-          ];
-          const renderRow = (items) => (
-            <div className="grid grid-cols-5 gap-3">
-              {items.map((col) => {
-                const c = col.color;
-                return (
-                  <div key={col.id} className={`flex flex-col rounded-xl border-2 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 ${c.card}`}>
-                    <div className={`h-1.5 w-full ${c.topBar}`}></div>
-                    <div className="px-4 py-4 flex flex-col items-center text-center">
-                      <span className={`text-xs font-bold uppercase tracking-widest mb-2 ${c.label}`}>STEP {col.id}</span>
-                      <div className={`text-5xl font-black leading-none mb-1 ${c.count}`}>{col.count}</div>
-                      <div className={`text-xs font-semibold mb-3 ${c.unit}`}>{t.kanban_unit}</div>
-                      <div className="text-sm font-bold text-gray-700 leading-snug">{t[col.titleKey]}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-          return (
-            <div className="space-y-3">
-              {renderRow(cols.slice(0, 5))}
-              {renderRow(cols.slice(5, 10))}
-            </div>
-          );
-        })()}
-
-        {/* 底部汇总 */}
+        <div className="space-y-3">
+          {renderRow(cols.slice(0, 5))}
+          {renderRow(cols.slice(5, 10))}
+        </div>
         <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-sm">
           <div className="flex space-x-6">
-            <span className="text-gray-500">{t.kanban_total}<span className="font-bold text-gray-800">47</span> {t.kanban_unit}</span>
-            <span className="text-gray-500">{t.kanban_normal}<span className="font-bold text-gray-800">45</span></span>
-            <span className="text-red-500 font-medium">{t.kanban_anomaly_label}<span className="font-bold">2</span></span>
+            <span className="text-gray-500">{t.kanban_total}<span className="font-bold text-gray-800">{kanban.total || 0}</span> {t.kanban_unit}</span>
+            <span className="text-gray-500">{t.kanban_normal}<span className="font-bold text-gray-800">{kanban.normal || 0}</span></span>
+            <span className="text-red-500 font-medium">{t.kanban_anomaly_label}<span className="font-bold">{kanban.anomaly || 0}</span></span>
           </div>
           <button className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center">
             {t.kanban_viewAll} <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
@@ -357,205 +411,236 @@ const HomeView = () => {
         </div>
       </div>
 
-      {/* 最近活动 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-lg font-bold text-gray-800 mb-6 px-2">{t.activity_title}</h3>
         <div className="space-y-0 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
-          {[
-            { timeKey: 'act1_time', titleKey: 'act1_title', descKey: 'act1_desc', type: 'alert' },
-            { timeKey: 'act2_time', titleKey: 'act2_title', descKey: 'act2_desc', type: 'success' },
-            { timeKey: 'act3_time', titleKey: 'act3_title', descKey: 'act3_desc', type: 'info' },
-          ].map((item, i) => (
+          {(activities.length ? activities : [
+            { type: 'ALERT', title: t.act1_title, description: t.act1_desc, time: t.act1_time },
+            { type: 'SUCCESS', title: t.act2_title, description: t.act2_desc, time: t.act2_time },
+            { type: 'INFO', title: t.act3_title, description: t.act3_desc, time: t.act3_time },
+          ]).map((item, i) => (
             <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-blue-100 text-blue-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                {item.type === 'alert' ? <AlertTriangle className="w-4 h-4 text-red-500" /> : 
-                 item.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : 
-                 <FileCheck className="w-4 h-4 text-blue-500" />}
+                {String(item.type || '').toUpperCase() === 'ALERT' ? <AlertTriangle className="w-4 h-4 text-red-500" /> :
+                  String(item.type || '').toUpperCase() === 'SUCCESS' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
+                    <FileCheck className="w-4 h-4 text-blue-500" />}
               </div>
               <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-gray-100 bg-gray-50/50 shadow-sm">
                 <div className="flex items-center justify-between space-x-2 mb-1">
-                  <div className="font-bold text-gray-800">{t[item.titleKey]}</div>
-                  <div className="text-xs font-medium text-gray-500">{t[item.timeKey]}</div>
+                  <div className="font-bold text-gray-800">{item.title}</div>
+                  <div className="text-xs font-medium text-gray-500">{item.time || ''}</div>
                 </div>
-                <div className="text-sm text-gray-600">{t[item.descKey]}</div>
+                <div className="text-sm text-gray-600">{item.description}</div>
               </div>
             </div>
           ))}
         </div>
+        {error ? <p className="mt-4 text-xs text-amber-600">{error}</p> : null}
       </div>
     </div>
   );
 };
 
 // 2. 文档上传视图
-const UploadView = () => {
+const UploadView = ({ authToken }) => {
   const t = useT();
+  const fileInputRef = useRef(null);
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadFiles = async () => {
+    if (!authToken) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/files?limit=20`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setFiles(data?.items || []);
+    } catch (err) {
+      setError(err.message || 'failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFiles();
+  }, [authToken]);
+
+  const handlePickFile = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const selected = event.target.files?.[0];
+    if (!selected || !authToken) return;
+    const formData = new FormData();
+    formData.append('file', selected);
+    formData.append('parse', 'true');
+    setUploading(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
+        method: 'POST',
+        headers: buildAuthHeaders(authToken),
+        body: formData,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Upload failed');
+      }
+      await loadFiles();
+    } catch (err) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      event.target.value = '';
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
       <h2 className="text-xl font-bold text-gray-800 mb-6">{t.upload_title}</h2>
-      
-      {/* 拖拽上传区 */}
-      <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 p-12 text-center hover:bg-blue-50 hover:border-blue-400 transition-colors cursor-pointer mb-8">
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 p-12 text-center hover:bg-blue-50 hover:border-blue-400 transition-colors cursor-pointer mb-8" onClick={handlePickFile}>
         <div className="bg-white w-16 h-16 rounded-full shadow-sm flex items-center justify-center mx-auto mb-4">
           <UploadCloud className="w-8 h-8 text-blue-500" />
         </div>
         <h3 className="text-lg font-medium text-gray-800 mb-2">{t.upload_drag}</h3>
         <p className="text-sm text-gray-500 mb-4">{t.upload_formats}</p>
-        <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
-          {t.browse}
+        <button type="button" className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+          {uploading ? t.fetching_rate : t.browse}
         </button>
       </div>
 
-      {/* 上传列表 */}
       <div>
         <h3 className="text-base font-semibold text-gray-800 mb-4">{t.recent_uploads}</h3>
         <div className="space-y-3">
-          {[
-            { name: 'Commercial_Invoice_INV2023.pdf', size: '2.4 MB', status: 'done', date: '2023-08-24 10:20' },
-            { name: 'Packing_List_PL2023.pdf', size: '1.1 MB', status: 'done', date: '2023-08-24 10:21' },
-            { name: 'Bill_of_Lading_BL884.pdf', size: '3.5 MB', status: 'processing', date: '2023-08-24 11:05' },
-          ].map((file, i) => (
-            <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:shadow-sm transition-shadow">
-              <div className="flex items-center space-x-4">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <FileText className="w-6 h-6 text-blue-500" />
+          {loading ? <div className="text-sm text-gray-500">{t.fetching_rate}</div> : null}
+          {!loading && files.length === 0 ? <div className="text-sm text-gray-400">No files yet.</div> : null}
+          {files.map((file, i) => {
+            const parseStatus = String(file.parse_status || '').toUpperCase();
+            const done = parseStatus === 'SUCCESS';
+            return (
+              <div key={file.id || i} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:shadow-sm transition-shadow">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <FileText className="w-6 h-6 text-blue-500" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm text-gray-800">{file.file_name}</div>
+                    <div className="text-xs text-gray-500">{formatFileSize(file.file_size)} • {file.upload_time}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-medium text-sm text-gray-800">{file.name}</div>
-                  <div className="text-xs text-gray-500">{file.size} • {file.date}</div>
+                <div className="flex items-center space-x-4">
+                  {done ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {t.verified}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      {t.ai_processing}
+                    </span>
+                  )}
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                {file.status === 'done' ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {t.verified}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    {t.ai_processing}
-                  </span>
-                )}
-                <button className="text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+        {error ? <p className="text-xs text-amber-600 mt-3">{error}</p> : null}
       </div>
     </div>
   );
 };
 
 // 3. 流程跟踪视图 (原设计核心)
-const ProcessTrackingView = () => {
+const ProcessTrackingView = ({ authToken }) => {
   const t = useT();
-
-  const getInitialSteps = () => [
-    { id: 1,  status: 'COMPLETE', date: '08-24 08:10', desc: '' },
-    { id: 2,  status: 'COMPLETE', date: '08-24 08:10', desc: '' },
-    { id: 3,  status: 'COMPLETE', date: '08-24 08:10', desc: '' },
-    { id: 4,  status: 'PENDING',  date: '',             desc: '' },
-    { id: 5,  status: 'PENDING',  date: '',             desc: '' },
-    { id: 6,  status: 'PENDING',  date: '',             desc: '' },
-    { id: 7,  status: 'PENDING',  date: '',             desc: '' },
-    { id: 8,  status: 'PENDING',  date: '',             desc: '' },
-    { id: 9,  status: 'PENDING',  date: '',             desc: '' },
-    { id: 10, status: 'PENDING',  date: '',             desc: '' },
-  ];
-
-  const records = [
-    { bl: 'BR2023082401', goodsKey: 'goods1', date: '2023-08-24', port: 'Santos (SSZ)',      status: 'processing' },
-    { bl: 'BR2023082109', goodsKey: 'goods2', date: '2023-08-21', port: 'Paranaguá (PNG)',   status: 'cleared' },
-    { bl: 'BR2023081944', goodsKey: 'goods3', date: '2023-08-19', port: 'Rio de Janeiro',    status: 'inspection' },
-    { bl: 'BR2023081522', goodsKey: 'goods4', date: '2023-08-15', port: 'Santos (SSZ)',      status: 'cleared' },
-    { bl: 'BR2023081011', goodsKey: 'goods5', date: '2023-08-10', port: 'Itajaí (ITJ)',      status: 'cleared' },
-  ];
+  const PAGE_SIZE = 10;
+  const [records, setRecords] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState('');
 
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [stepsData, setStepsData] = useState(getInitialSteps);
+  const [stepsData, setStepsData] = useState([]);
+  const [progress, setProgress] = useState({ complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
   const [editingStep, setEditingStep] = useState(null);
   const [editForm, setEditForm] = useState({ status: '', date: '', desc: '' });
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const completedCount = stepsData.filter(s => s.status === 'COMPLETE').length;
-  const totalCount = stepsData.length;
-  const progressPercentage = Math.round((completedCount / totalCount) * 100);
-  const currentStep = stepsData.find(s => s.status === 'PENDING');
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // ---- 列表视图 ----
-  if (!selectedRecord) {
-    return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800">{t.process_list_title}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{t.process_list_desc}</p>
-          </div>
-          <div className="flex space-x-2">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder={t.search_placeholder}
-                className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
-              />
-            </div>
-            <button className="px-4 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">{t.filter}</button>
-          </div>
-        </div>
+  const loadList = async () => {
+    if (!authToken) return;
+    setListLoading(true);
+    setListError('');
+    const offset = (page - 1) * PAGE_SIZE;
+    const params = new URLSearchParams({
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
+    });
+    if (query.trim()) params.set('q', query.trim());
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/process/records?${params.toString()}`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setRecords(data?.items || []);
+      setTotal(Number(data?.total || 0));
+    } catch (err) {
+      setListError(err.message || 'failed');
+    } finally {
+      setListLoading(false);
+    }
+  };
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="px-6 py-4 font-semibold">{t.bl_number}</th>
-                <th className="px-6 py-4 font-semibold">{t.goods_desc}</th>
-                <th className="px-6 py-4 font-semibold">{t.declaration_date}</th>
-                <th className="px-6 py-4 font-semibold">{t.port_col}</th>
-                <th className="px-6 py-4 font-semibold">{t.status_col}</th>
-                <th className="px-6 py-4 font-semibold text-right">{t.action_col}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {records.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900">{row.bl}</td>
-                  <td className="px-6 py-4">{t[row.goodsKey]}</td>
-                  <td className="px-6 py-4">{row.date}</td>
-                  <td className="px-6 py-4">{row.port}</td>
-                  <td className="px-6 py-4">
-                    {row.status === 'cleared'    && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{t.status_cleared}</span>}
-                    {row.status === 'processing' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{t.status_processing}</span>}
-                    {row.status === 'inspection' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">{t.status_inspection}</span>}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => { setSelectedRecord(row); setStepsData(getInitialSteps()); }}
-                      className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm"
-                    >
-                      {t.view_process} <ChevronRight className="w-4 h-4 ml-0.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+  useEffect(() => {
+    loadList();
+  }, [authToken, page, query]);
 
-        <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500 flex justify-between items-center">
-          <span>{t.total_records(45)}</span>
-          <div className="flex space-x-1">
-            <button className="px-3 py-1 border rounded hover:bg-gray-50">{t.prev_page}</button>
-            <button className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded">1</button>
-            <button className="px-3 py-1 border rounded hover:bg-gray-50">2</button>
-            <button className="px-3 py-1 border rounded hover:bg-gray-50">3</button>
-            <button className="px-3 py-1 border rounded hover:bg-gray-50">{t.next_page}</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const loadDetail = async (recordId) => {
+    if (!authToken) return;
+    setDetailLoading(true);
+    setDetailError('');
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/process/records/${recordId}`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setSelectedRecord(data?.record || null);
+      setStepsData((data?.steps || []).map((step) => ({
+        id: Number(step.step_no),
+        status: step.status || 'PENDING',
+        date: step.date || '',
+        desc: step.desc || '',
+      })));
+      setProgress(data?.progress || { complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
+    } catch (err) {
+      setDetailError(err.message || 'failed');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const openEdit = (step) => {
     setEditingStep(step);
@@ -568,15 +653,45 @@ const ProcessTrackingView = () => {
     setSaveSuccess(false);
   };
 
-  const saveEdit = () => {
-    setStepsData(prev => prev.map(s =>
-      s.id === editingStep.id
-        ? { ...s, status: editForm.status, date: editForm.date, desc: editForm.desc }
-        : s
-    ));
-    setSaveSuccess(true);
-    setTimeout(() => closeEdit(), 900);
+  const saveEdit = async () => {
+    if (!selectedRecord || !editingStep || !authToken || saving) return;
+    setSaving(true);
+    setDetailError('');
+    try {
+      const data = await fetchJSON(
+        `${API_BASE_URL}/api/process/records/${selectedRecord.id}/steps/${editingStep.id}`,
+        {
+          method: 'PUT',
+          headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            status: editForm.status,
+            date: editForm.date,
+            desc: editForm.desc,
+          }),
+        }
+      );
+      setSelectedRecord(data?.record || selectedRecord);
+      setStepsData((data?.steps || []).map((step) => ({
+        id: Number(step.step_no),
+        status: step.status || 'PENDING',
+        date: step.date || '',
+        desc: step.desc || '',
+      })));
+      setProgress(data?.progress || progress);
+      setSaveSuccess(true);
+      setTimeout(() => closeEdit(), 900);
+      loadList();
+    } catch (err) {
+      setDetailError(err.message || 'failed');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const completedCount = Number(progress?.complete_count ?? stepsData.filter((s) => s.status === 'COMPLETE').length);
+  const totalCount = Number(progress?.total_count || stepsData.length || 10);
+  const progressPercentage = Number(progress?.percentage ?? (totalCount ? Math.round((completedCount / totalCount) * 100) : 0));
+  const currentStepNo = progress?.current_step_no || (stepsData.find((s) => s.status !== 'COMPLETE')?.id ?? null);
 
   const renderStepCard = (step, index, rowLength) => {
     const isComplete = step.status === 'COMPLETE';
@@ -585,7 +700,6 @@ const ProcessTrackingView = () => {
         <div className={`relative flex flex-col items-center p-5 rounded-xl border-2 w-[200px] h-[200px] text-center shrink-0 transition-all duration-300 hover:shadow-md ${
           isComplete ? 'border-green-400 bg-[#f0fcf4]' : 'border-red-400 bg-white'
         }`}>
-          {/* 编辑按钮 */}
           <button
             onClick={() => openEdit(step)}
             className="absolute top-2 right-2 p-1 rounded-md text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
@@ -609,9 +723,112 @@ const ProcessTrackingView = () => {
     );
   };
 
+  if (!selectedRecord) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">{t.process_list_title}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{t.process_list_desc}</p>
+          </div>
+          <div className="flex space-x-2">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setPage(1);
+                    setQuery(searchInput);
+                  }
+                }}
+                placeholder={t.search_placeholder}
+                className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
+              />
+            </div>
+            <button
+              onClick={() => {
+                setPage(1);
+                setQuery(searchInput);
+              }}
+              className="px-4 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t.filter}
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left text-gray-500">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4 font-semibold">{t.bl_number}</th>
+                <th className="px-6 py-4 font-semibold">{t.goods_desc}</th>
+                <th className="px-6 py-4 font-semibold">{t.declaration_date}</th>
+                <th className="px-6 py-4 font-semibold">{t.port_col}</th>
+                <th className="px-6 py-4 font-semibold">{t.status_col}</th>
+                <th className="px-6 py-4 font-semibold text-right">{t.action_col}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {listLoading ? (
+                <tr><td className="px-6 py-6 text-sm text-gray-500" colSpan={6}>{t.fetching_rate}</td></tr>
+              ) : records.length === 0 ? (
+                <tr><td className="px-6 py-6 text-sm text-gray-400" colSpan={6}>No records.</td></tr>
+              ) : records.map((row) => (
+                <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-gray-900">{row.bl}</td>
+                  <td className="px-6 py-4">{row.goods_desc || '-'}</td>
+                  <td className="px-6 py-4">{row.declaration_date || '-'}</td>
+                  <td className="px-6 py-4">{row.port || '-'}</td>
+                  <td className="px-6 py-4">
+                    {row.status === 'cleared' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{t.status_cleared}</span>}
+                    {row.status === 'processing' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{t.status_processing}</span>}
+                    {row.status === 'inspection' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">{t.status_inspection}</span>}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => loadDetail(row.id)}
+                      className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    >
+                      {t.view_process} <ChevronRight className="w-4 h-4 ml-0.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500 flex justify-between items-center">
+          <span>{t.total_records(total)}</span>
+          <div className="flex space-x-1">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40"
+            >
+              {t.prev_page}
+            </button>
+            <button className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded">{page}</button>
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40"
+            >
+              {t.next_page}
+            </button>
+          </div>
+        </div>
+        {listError ? <p className="px-6 pb-4 text-xs text-amber-600">{listError}</p> : null}
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 overflow-hidden min-w-[1100px]">
-      {/* 编辑状态模态框 */}
       {editingStep && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-[440px] p-7 relative">
@@ -635,27 +852,22 @@ const ProcessTrackingView = () => {
                   {editingStep.id}. {t[`step${editingStep.id}`]}
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.status_label}</label>
                 <div className="flex space-x-3">
                   <button
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'COMPLETE' }))}
+                    onClick={() => setEditForm((prev) => ({ ...prev, status: 'COMPLETE' }))}
                     className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
-                      editForm.status === 'COMPLETE'
-                        ? 'border-green-400 bg-green-50 text-green-700'
-                        : 'border-gray-200 text-gray-500 hover:border-green-300 hover:bg-green-50/50'
+                      editForm.status === 'COMPLETE' ? 'border-green-400 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:border-green-300 hover:bg-green-50/50'
                     }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>COMPLETE</span>
                   </button>
                   <button
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'PENDING' }))}
+                    onClick={() => setEditForm((prev) => ({ ...prev, status: 'PENDING' }))}
                     className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
-                      editForm.status === 'PENDING'
-                        ? 'border-red-400 bg-red-50 text-red-700'
-                        : 'border-gray-200 text-gray-500 hover:border-red-300 hover:bg-red-50/50'
+                      editForm.status === 'PENDING' ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-200 text-gray-500 hover:border-red-300 hover:bg-red-50/50'
                     }`}
                   >
                     <Circle className="w-4 h-4" strokeWidth={2} />
@@ -663,7 +875,6 @@ const ProcessTrackingView = () => {
                   </button>
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   {t.completion_time_label} <span className="text-gray-400 font-normal">{t.completion_time_hint}</span>
@@ -672,17 +883,16 @@ const ProcessTrackingView = () => {
                   type="text"
                   placeholder={t.completion_time_ph}
                   value={editForm.date}
-                  onChange={e => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, date: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.step_desc_label}</label>
                 <textarea
                   rows={3}
                   value={editForm.desc}
-                  onChange={e => setEditForm(prev => ({ ...prev, desc: e.target.value }))}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, desc: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                 />
               </div>
@@ -697,9 +907,10 @@ const ProcessTrackingView = () => {
               </button>
               <button
                 onClick={saveEdit}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                disabled={saving}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-60"
               >
-                {t.save_update}
+                {saving ? t.fetching_rate : t.save_update}
               </button>
             </div>
           </div>
@@ -709,7 +920,10 @@ const ProcessTrackingView = () => {
       <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => setSelectedRecord(null)}
+            onClick={() => {
+              setSelectedRecord(null);
+              setEditingStep(null);
+            }}
             className="flex items-center text-sm text-gray-500 hover:text-blue-600 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 border border-gray-200 hover:border-blue-200 transition-colors"
           >
             <ArrowRight className="w-4 h-4 mr-1.5 rotate-180" /> {t.back_to_list}
@@ -719,9 +933,9 @@ const ProcessTrackingView = () => {
             <div className="flex items-center space-x-3 mt-0.5 text-xs text-gray-400">
               <span>{t.bl_label}<span className="font-semibold text-gray-600">{selectedRecord.bl}</span></span>
               <span>·</span>
-              <span>{t[selectedRecord.goodsKey]}</span>
+              <span>{selectedRecord.goods_desc || '-'}</span>
               <span>·</span>
-              <span>{selectedRecord.port}</span>
+              <span>{selectedRecord.port || '-'}</span>
             </div>
           </div>
         </div>
@@ -741,7 +955,7 @@ const ProcessTrackingView = () => {
             </div>
             <div className="flex items-center text-sm">
               <span className="text-gray-500 w-32">{t.current_step_label}</span>
-              <span className="font-medium text-gray-800">{currentStep ? t[`step${currentStep.id}`] : t.all_done}</span>
+              <span className="font-medium text-gray-800">{currentStepNo ? t[`step${currentStepNo}`] : t.all_done}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3.5 mt-2 overflow-hidden border border-gray-200/50">
               <div
@@ -753,6 +967,9 @@ const ProcessTrackingView = () => {
             </div>
           </div>
         </div>
+
+        {detailLoading ? <p className="text-sm text-gray-500 mb-4">{t.fetching_rate}</p> : null}
+        {detailError ? <p className="text-xs text-amber-600 mb-4">{detailError}</p> : null}
 
         <div className="space-y-12 pb-4">
           <div className="flex items-center justify-between">
@@ -769,7 +986,7 @@ const ProcessTrackingView = () => {
 
 
 // 4. 成本分析视图
-const CostAnalysisView = () => {
+const CostAnalysisView = ({ authToken }) => {
   const t = useT();
   const [customsFee, setCustomsFee] = useState('');
   const [refundFee, setRefundFee] = useState('');
@@ -781,105 +998,148 @@ const CostAnalysisView = () => {
   const [otherFees, setOtherFees] = useState('');
   const [products, setProducts] = useState([{ name: '', qty: '' }]);
   const [result, setResult] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [calcLoading, setCalcLoading] = useState(false);
+  const [calcError, setCalcError] = useState('');
+
+  const fetchOverview = async () => {
+    if (!authToken) return;
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/cost/overview`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setOverview(data || null);
+    } catch (err) {
+      setCalcError(err.message || 'failed');
+    }
+  };
 
   const fetchRate = async () => {
+    if (!authToken) return;
     setRateLoading(true);
     setRateError('');
     try {
-      const res = await fetch('https://api.nxvav.cn/api/exchange-rate/');
-      const json = await res.json();
-      const rates = json?.data?.rates;
-      const usdEntry = rates?.find(r => r.currency === 'USD');
-      const brlEntry = rates?.find(r => r.currency === 'BRL');
-      if (usdEntry && brlEntry && usdEntry.rate > 0) {
-        const calcRate = (brlEntry.rate / usdEntry.rate).toFixed(4);
-        setUsdRate(calcRate);
-        setRateUpdatedAt(json?.data?.updated || '');
-      } else {
-        setRateError(t.rate_parse_failed);
+      const data = await fetchJSON(`${API_BASE_URL}/api/cost/exchange-rate?base=USD&quote=BRL`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setUsdRate(String(data?.rate ?? ''));
+      setRateUpdatedAt(data?.updated_at || '');
+      if (data?.warning) {
+        setRateError(data.warning);
       }
-    } catch (e) {
-      setRateError(t.rate_network_failed);
+    } catch (err) {
+      setRateError(err.message || t.rate_network_failed);
     } finally {
       setRateLoading(false);
     }
   };
 
-  useEffect(() => { fetchRate(); }, []);
+  useEffect(() => {
+    fetchOverview();
+    fetchRate();
+  }, [authToken]);
 
-  const addProduct = () => setProducts(prev => [...prev, { name: '', qty: '' }]);
-  const removeProduct = (i) => setProducts(prev => prev.filter((_, idx) => idx !== i));
+  const addProduct = () => setProducts((prev) => [...prev, { name: '', qty: '' }]);
+  const removeProduct = (i) => setProducts((prev) => prev.filter((_, idx) => idx !== i));
   const updateProduct = (i, field, value) =>
-    setProducts(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p));
+    setProducts((prev) => prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p)));
 
-  const fmt = (num) => num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  const fmt = (num) => Number(num || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
-  const calculate = () => {
-    const cf = parseFloat(customsFee) || 0;
-    const rf = parseFloat(refundFee) || 0;
-    const ua = parseFloat(usdAmount) || 0;
-    const ur = parseFloat(usdRate) || 1;
-    const of = parseFloat(otherFees) || 0;
-
-    const netCustoms = cf - rf;
-    const usdInBrl = ua * ur;
-    const totalBase = netCustoms + usdInBrl + of;
-    const totalQty = products.reduce((sum, p) => sum + (parseFloat(p.qty) || 0), 0);
-    const perUnitCost = totalQty > 0 ? totalBase / totalQty : 0;
-
-    const productCosts = products.map(p => ({
-      name: p.name || t.unnamed_product,
-      qty: parseFloat(p.qty) || 0,
-      cost: totalQty > 0 ? (totalBase * ((parseFloat(p.qty) || 0) / totalQty)) : 0,
-      unitCost: totalQty > 0 && parseFloat(p.qty) > 0 ? totalBase / totalQty : 0,
-    }));
-
-    setResult({ cf, rf, ua, ur, of, netCustoms, usdInBrl, totalBase, totalQty, perUnitCost, productCosts });
+  const calculate = async () => {
+    if (!authToken) return;
+    setCalcLoading(true);
+    setCalcError('');
+    try {
+      const payload = {
+        customs_fee: Number(customsFee || 0),
+        refund_fee: Number(refundFee || 0),
+        usd_amount: Number(usdAmount || 0),
+        usd_rate: Number(usdRate || 0),
+        other_fees: Number(otherFees || 0),
+        products: products.map((p) => ({ name: p.name || '', qty: Number(p.qty || 0) })),
+      };
+      const data = await fetchJSON(`${API_BASE_URL}/api/cost/calculate`, {
+        method: 'POST',
+        headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload),
+      });
+      setResult({
+        cf: Number(data?.input?.customs_fee || 0),
+        rf: Number(data?.input?.refund_fee || 0),
+        ua: Number(data?.input?.usd_amount || 0),
+        ur: Number(data?.input?.usd_rate || 0),
+        of: Number(data?.input?.other_fees || 0),
+        netCustoms: Number(data?.summary?.net_customs || 0),
+        usdInBrl: Number(data?.summary?.usd_in_brl || 0),
+        totalBase: Number(data?.summary?.total_base || 0),
+        totalQty: Number(data?.summary?.total_qty || 0),
+        perUnitCost: Number(data?.summary?.per_unit_cost || 0),
+        productCosts: (data?.product_costs || []).map((p) => ({
+          name: p.name || t.unnamed_product,
+          qty: Number(p.qty || 0),
+          cost: Number(p.cost || 0),
+          unitCost: Number(p.unit_cost || 0),
+        })),
+      });
+    } catch (err) {
+      setCalcError(err.message || 'failed');
+    } finally {
+      setCalcLoading(false);
+    }
   };
 
   const reset = () => {
     setResult(null);
-    setCustomsFee(''); setRefundFee(''); setUsdAmount('');
-    setUsdRate('1.5000'); setOtherFees('');
+    setCustomsFee('');
+    setRefundFee('');
+    setUsdAmount('');
+    setOtherFees('');
     setProducts([{ name: '', qty: '' }]);
+    setCalcError('');
   };
 
   const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors";
   const labelCls = "block text-xs font-medium text-gray-500 mb-1.5";
   const sectionCls = "bg-white rounded-2xl shadow-sm border border-gray-100 p-6";
+  const topTotal = Number(overview?.total_import_cost || 0);
+  const majorTaxDetails = (overview?.major_tax_details || []).length ? (overview?.major_tax_details || []) : [
+    { label: 'II (进口税)', amount: 520000, percent: 42 },
+    { label: 'IPI (工业产品税)', amount: 310000, percent: 25 },
+    { label: 'PIS/COFINS', amount: 250000, percent: 20 },
+    { label: 'ICMS', amount: 115600, percent: 9 },
+    { label: t.afrmm, amount: 50000, percent: 4 },
+  ];
+  const barColors = ['bg-blue-500', 'bg-orange-400', 'bg-green-400', 'bg-purple-500', 'bg-gray-400'];
 
   return (
     <div className="space-y-6">
-      {/* 顶部原有税费总览卡片 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-5">{t.cost_structure_title}</h2>
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="lg:w-1/3 bg-gray-50 rounded-xl p-6 flex flex-col items-center justify-center border border-gray-100">
             <div className="text-gray-500 mb-1 text-sm font-medium">{t.total_import_cost}</div>
-            <div className="text-3xl font-bold text-gray-800 mb-5">R$ 1,245,600</div>
+            <div className="text-3xl font-bold text-gray-800 mb-5">{formatCurrencyBRL(topTotal)}</div>
             <div className="relative w-40 h-40 rounded-full border-[14px] border-blue-500 flex items-center justify-center">
               <div className="absolute inset-0 border-[14px] border-orange-400 rounded-full" style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 50%)' }}></div>
               <div className="absolute inset-0 border-[14px] border-green-400 rounded-full" style={{ clipPath: 'polygon(50% 50%, 0 50%, 0 0, 50% 0)' }}></div>
               <div className="bg-gray-50 w-full h-full rounded-full absolute -z-10"></div>
-              <div className="text-center z-10"><div className="text-xs text-gray-500">{t.largest_share}</div><div className="font-bold text-gray-800 text-sm">II (进口税)</div></div>
+              <div className="text-center z-10">
+                <div className="text-xs text-gray-500">{t.largest_share}</div>
+                <div className="font-bold text-gray-800 text-sm">{overview?.largest_share?.label || 'II (进口税)'}</div>
+              </div>
             </div>
           </div>
           <div className="lg:w-2/3 space-y-4">
             <h3 className="font-semibold text-gray-800 border-b border-gray-100 pb-2 text-sm">{t.major_tax_details}</h3>
-            {[
-              { label: 'II (进口税)', amount: 'R$ 520,000', percent: 42, color: 'bg-blue-500' },
-              { label: 'IPI (工业产品税)', amount: 'R$ 310,000', percent: 25, color: 'bg-orange-400' },
-              { label: 'PIS/COFINS', amount: 'R$ 250,000', percent: 20, color: 'bg-green-400' },
-              { label: 'ICMS', amount: 'R$ 115,600', percent: 9, color: 'bg-purple-500' },
-              { label: t.afrmm, amount: 'R$ 50,000', percent: 4, color: 'bg-gray-400' },
-            ].map((item, i) => (
+            {majorTaxDetails.map((item, i) => (
               <div key={i}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="font-medium text-gray-700">{item.label}</span>
-                  <span className="font-bold text-gray-800">{item.amount}</span>
+                  <span className="font-bold text-gray-800">{formatCurrencyBRL(item.amount)}</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className={`${item.color} h-2 rounded-full`} style={{ width: `${item.percent}%` }}></div>
+                  <div className={`${barColors[i % barColors.length]} h-2 rounded-full`} style={{ width: `${item.percent || 0}%` }}></div>
                 </div>
               </div>
             ))}
@@ -887,11 +1147,8 @@ const CostAnalysisView = () => {
         </div>
       </div>
 
-      {/* 成本计算器 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 左侧：数据输入 */}
         <div className="space-y-4">
-          {/* Section 1: 费用输入 */}
           <div className={sectionCls}>
             <div className="flex items-center mb-4">
               <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2">1</div>
@@ -900,16 +1157,15 @@ const CostAnalysisView = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>{t.total_customs_fee}</label>
-                <input type="number" placeholder="0.00" value={customsFee} onChange={e => setCustomsFee(e.target.value)} className={inputCls} />
+                <input type="number" placeholder="0.00" value={customsFee} onChange={(e) => setCustomsFee(e.target.value)} className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>{t.refund_fee}</label>
-                <input type="number" placeholder="0.00" value={refundFee} onChange={e => setRefundFee(e.target.value)} className={inputCls} />
+                <input type="number" placeholder="0.00" value={refundFee} onChange={(e) => setRefundFee(e.target.value)} className={inputCls} />
               </div>
             </div>
           </div>
 
-          {/* Section 2: 商品信息 */}
           <div className={sectionCls}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
@@ -923,10 +1179,8 @@ const CostAnalysisView = () => {
             <div className="space-y-2.5">
               {products.map((p, i) => (
                 <div key={i} className="flex items-center space-x-2">
-                  <input type="text" placeholder={t.product_name_ph} value={p.name} onChange={e => updateProduct(i, 'name', e.target.value)}
-                    className={`${inputCls} flex-1`} />
-                  <input type="number" placeholder={t.qty_ph} value={p.qty} onChange={e => updateProduct(i, 'qty', e.target.value)}
-                    className={`${inputCls} w-24`} />
+                  <input type="text" placeholder={t.product_name_ph} value={p.name} onChange={(e) => updateProduct(i, 'name', e.target.value)} className={`${inputCls} flex-1`} />
+                  <input type="number" placeholder={t.qty_ph} value={p.qty} onChange={(e) => updateProduct(i, 'qty', e.target.value)} className={`${inputCls} w-24`} />
                   {products.length > 1 && (
                     <button onClick={() => removeProduct(i)} className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
@@ -937,7 +1191,6 @@ const CostAnalysisView = () => {
             </div>
           </div>
 
-          {/* Section 3: 附加费用 */}
           <div className={sectionCls}>
             <div className="flex items-center mb-4">
               <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2">3</div>
@@ -946,7 +1199,7 @@ const CostAnalysisView = () => {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className={labelCls}>{t.usd_amount}</label>
-                <input type="number" placeholder="0.00" value={usdAmount} onChange={e => setUsdAmount(e.target.value)} className={inputCls} />
+                <input type="number" placeholder="0.00" value={usdAmount} onChange={(e) => setUsdAmount(e.target.value)} className={inputCls} />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -965,7 +1218,7 @@ const CostAnalysisView = () => {
                     type="number"
                     placeholder={t.auto_fetching_ph}
                     value={usdRate}
-                    onChange={e => setUsdRate(e.target.value)}
+                    onChange={(e) => setUsdRate(e.target.value)}
                     className={`${inputCls} pr-16`}
                   />
                   {rateLoading && (
@@ -987,19 +1240,18 @@ const CostAnalysisView = () => {
               </div>
               <div>
                 <label className={labelCls}>{t.other_fees_label}</label>
-                <input type="number" placeholder="0.00" value={otherFees} onChange={e => setOtherFees(e.target.value)} className={inputCls} />
+                <input type="number" placeholder="0.00" value={otherFees} onChange={(e) => setOtherFees(e.target.value)} className={inputCls} />
               </div>
             </div>
           </div>
 
-          {/* 计算按钮 */}
-          <button onClick={calculate} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold flex items-center justify-center space-x-2 shadow-sm transition-colors">
+          <button onClick={calculate} disabled={calcLoading} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold flex items-center justify-center space-x-2 shadow-sm transition-colors disabled:opacity-60">
             <Calculator className="w-5 h-5" />
-            <span>{t.calculate_cost}</span>
+            <span>{calcLoading ? t.fetching_rate : t.calculate_cost}</span>
           </button>
+          {calcError ? <p className="text-xs text-amber-600">{calcError}</p> : null}
         </div>
 
-        {/* 右侧：计算结果 */}
         <div className="space-y-4">
           {!result ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center h-full min-h-[400px] text-center p-8">
@@ -1011,7 +1263,6 @@ const CostAnalysisView = () => {
             </div>
           ) : (
             <>
-              {/* 成本汇总 */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
                 <div className="flex items-center mb-4">
                   <PieChart className="w-4 h-4 mr-2 opacity-80" />
@@ -1029,7 +1280,6 @@ const CostAnalysisView = () => {
                 </div>
               </div>
 
-              {/* 计算公式 */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                   <span className="w-1 h-4 bg-blue-500 rounded mr-2 inline-block"></span>{t.formula_title}
@@ -1044,7 +1294,6 @@ const CostAnalysisView = () => {
                 </div>
               </div>
 
-              {/* 成本分解 */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                   <span className="w-1 h-4 bg-indigo-500 rounded mr-2 inline-block"></span>{t.cost_breakdown}
@@ -1059,19 +1308,14 @@ const CostAnalysisView = () => {
                     { label: t.other_fees_row, value: `${fmt(result.of)} BRL`, normal: true },
                     { label: t.total_cost_base_row, value: `${fmt(result.totalBase)} BRL`, bold: true, border: true },
                   ].map((row, i) => (
-                    <div key={i} className={`flex justify-between py-1.5 ${
-                      row.border ? 'border-t border-gray-200 mt-1 pt-2.5' : ''
-                    }`}>
-                      <span className={`${ row.bold ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>{row.label}</span>
-                      <span className={`font-medium ${
-                        row.bold ? 'text-gray-900 font-bold' : row.red ? 'text-red-500' : 'text-gray-700'
-                      }`}>{row.value}</span>
+                    <div key={i} className={`flex justify-between py-1.5 ${row.border ? 'border-t border-gray-200 mt-1 pt-2.5' : ''}`}>
+                      <span className={`${row.bold ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>{row.label}</span>
+                      <span className={`font-medium ${row.bold ? 'text-gray-900 font-bold' : row.red ? 'text-red-500' : 'text-gray-700'}`}>{row.value}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* 商品成本明细 */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                   <span className="w-1 h-4 bg-green-500 rounded mr-2 inline-block"></span>{t.product_cost_detail}
@@ -1092,7 +1336,6 @@ const CostAnalysisView = () => {
                 </div>
               </div>
 
-              {/* 操作按钮 */}
               <div className="flex space-x-3">
                 <button onClick={reset} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                   {t.reset}
@@ -1110,8 +1353,47 @@ const CostAnalysisView = () => {
 };
 
 // 5. 报表分析视图
-const ReportView = () => {
+const ReportView = ({ authToken }) => {
   const t = useT();
+  const PAGE_SIZE = 10;
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    if (!authToken) return;
+    let active = true;
+    const offset = (page - 1) * PAGE_SIZE;
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+    if (query.trim()) params.set('q', query.trim());
+    setLoading(true);
+    setError('');
+    fetchJSON(`${API_BASE_URL}/api/reports/records?${params.toString()}`, {
+      headers: buildAuthHeaders(authToken),
+    })
+      .then((data) => {
+        if (!active) return;
+        setRows(data?.items || []);
+        setTotal(Number(data?.total || 0));
+      })
+      .catch((err) => {
+        if (active) setError(err.message || 'failed');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken, page, query]);
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -1119,18 +1401,32 @@ const ReportView = () => {
         <div className="flex space-x-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setPage(1);
+                  setQuery(searchInput);
+                }
+              }}
               placeholder={t.search_placeholder}
               className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
             />
           </div>
-          <button className="px-4 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">
+          <button
+            onClick={() => {
+              setPage(1);
+              setQuery(searchInput);
+            }}
+            className="px-4 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
             {t.filter}
           </button>
         </div>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100">
@@ -1144,18 +1440,16 @@ const ReportView = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {[
-              { bl: 'BR2023082401', goodsKey: 'goods1', date: '2023-08-24', port: 'Santos (SSZ)', status: 'processing' },
-              { bl: 'BR2023082109', goodsKey: 'goods2', date: '2023-08-21', port: 'Paranaguá (PNG)', status: 'cleared' },
-              { bl: 'BR2023081944', goodsKey: 'goods3', date: '2023-08-19', port: 'Rio de Janeiro', status: 'inspection' },
-              { bl: 'BR2023081522', goodsKey: 'goods4', date: '2023-08-15', port: 'Santos (SSZ)', status: 'cleared' },
-              { bl: 'BR2023081011', goodsKey: 'goods5', date: '2023-08-10', port: 'Itajaí (ITJ)', status: 'cleared' },
-            ].map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+            {loading ? (
+              <tr><td className="px-6 py-6 text-sm text-gray-500" colSpan={6}>{t.fetching_rate}</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td className="px-6 py-6 text-sm text-gray-400" colSpan={6}>No records.</td></tr>
+            ) : rows.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-6 py-4 font-medium text-gray-900">{row.bl}</td>
-                <td className="px-6 py-4">{t[row.goodsKey]}</td>
-                <td className="px-6 py-4">{row.date}</td>
-                <td className="px-6 py-4">{row.port}</td>
+                <td className="px-6 py-4">{row.goods_desc || '-'}</td>
+                <td className="px-6 py-4">{row.declaration_date || '-'}</td>
+                <td className="px-6 py-4">{row.port || '-'}</td>
                 <td className="px-6 py-4">
                   {row.status === 'cleared' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{t.status_cleared}</span>}
                   {row.status === 'processing' && <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{t.status_processing}</span>}
@@ -1170,15 +1464,26 @@ const ReportView = () => {
         </table>
       </div>
       <div className="px-6 py-4 border-t border-gray-100 text-sm text-gray-500 flex justify-between items-center">
-        <span>{t.total_records(45)}</span>
+        <span>{t.total_records(total)}</span>
         <div className="flex space-x-1">
-          <button className="px-3 py-1 border rounded hover:bg-gray-50">{t.prev_page}</button>
-          <button className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded">1</button>
-          <button className="px-3 py-1 border rounded hover:bg-gray-50">2</button>
-          <button className="px-3 py-1 border rounded hover:bg-gray-50">3</button>
-          <button className="px-3 py-1 border rounded hover:bg-gray-50">{t.next_page}</button>
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40"
+          >
+            {t.prev_page}
+          </button>
+          <button className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded">{page}</button>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-40"
+          >
+            {t.next_page}
+          </button>
         </div>
       </div>
+      {error ? <p className="px-6 pb-4 text-xs text-amber-600">{error}</p> : null}
     </div>
   );
 };
@@ -1249,19 +1554,19 @@ export default function App() {
   const menuItems = [
     { key: 'home',    label: t.nav_home,    icon: Home },
     { key: 'upload',  label: t.nav_upload,  icon: UploadCloud },
-    { key: 'process', label: t.nav_process, icon: Map },
+    { key: 'process', label: t.nav_process, icon: MapIcon },
     { key: 'cost',    label: t.nav_cost,    icon: PieChart },
     { key: 'report',  label: t.nav_report,  icon: BarChart2 },
   ];
 
   const renderContent = () => {
     switch (activeMenu) {
-      case 'home':    return <HomeView />;
-      case 'upload':  return <UploadView />;
-      case 'process': return <ProcessTrackingView />;
-      case 'cost':    return <CostAnalysisView />;
-      case 'report':  return <ReportView />;
-      default:        return <HomeView />;
+      case 'home':    return <HomeView authToken={auth?.access_token} />;
+      case 'upload':  return <UploadView authToken={auth?.access_token} />;
+      case 'process': return <ProcessTrackingView authToken={auth?.access_token} />;
+      case 'cost':    return <CostAnalysisView authToken={auth?.access_token} />;
+      case 'report':  return <ReportView authToken={auth?.access_token} />;
+      default:        return <HomeView authToken={auth?.access_token} />;
     }
   };
 
@@ -1298,7 +1603,7 @@ export default function App() {
         <div className="p-4 border-t border-gray-100">
           <div className="bg-blue-50 rounded-xl p-4 flex flex-col items-center text-center">
             <div className="bg-white p-2 rounded-full shadow-sm mb-2 text-blue-500">
-              <Map className="w-5 h-5" />
+              <MapIcon className="w-5 h-5" />
             </div>
             <div className="text-sm font-semibold text-gray-800 mb-1">{t.needHelp}</div>
             <div className="text-xs text-gray-500 mb-3">{t.helpDesc}</div>

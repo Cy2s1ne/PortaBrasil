@@ -20,7 +20,11 @@ Portabrasil-server/
 │       ├── files.py         # 文件上传、解析、查询
 │       ├── documents.py     # 文本入库
 │       ├── business.py      # 业务与费用查询
-│       └── tasks.py         # 任务查询
+│       ├── tasks.py         # 任务查询
+│       ├── dashboard.py     # 首页仪表盘数据
+│       ├── process.py       # 清关流程跟踪
+│       ├── reports.py       # 报表列表
+│       └── cost.py          # 成本分析（汇率/计算/记录）
 ├── database.py              # 数据库连接与初始化（MySQL/SQLite）
 └── services.py              # PDF 解析与业务入库服务逻辑
 ```
@@ -41,6 +45,12 @@ MySQL 版本使用根目录的 SQL：
 ```bash
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -u root -p portabrasil < ../portabrasil.sql
+```
+
+如果你是**已有数据库升级**（不想全量 `DROP/CREATE`），可以执行增量迁移：
+
+```bash
+mysql -u root -p portabrasil < sql/migrations/20260416_add_cost_module_tables.sql
 ```
 
 服务只通过 `os.getenv` 读取系统环境变量，不会自动读取 `.env` 文件。开发阶段推荐直接在终端导出变量：
@@ -170,6 +180,22 @@ GET /api/business/{business_id}/fees
 GET /api/tasks/{task_id}
 ```
 
+### 仪表盘与流程（对齐前端页面）
+
+```http
+GET /api/dashboard/overview
+GET /api/process/records
+GET /api/process/records/{record_id}
+PUT /api/process/records/{record_id}/steps/{step_no}
+GET /api/reports/records
+GET /api/cost/overview
+GET /api/cost/exchange-rate?base=USD&quote=BRL
+POST /api/cost/calculate
+POST /api/cost/records
+GET /api/cost/records
+GET /api/cost/records/{record_id}
+```
+
 ### 用户与角色管理
 
 ```http
@@ -200,3 +226,19 @@ POST /api/auth/users   # 仅 SUPER_ADMIN / ADMIN 可调用
 - 贷借方向：`ADIANTAMENTO` 或费用代码 `200` 进入 `credit_amount`，其他费用进入 `debit_amount`，负数会按原值保存。
 
 同一个 `S/Ref` 再次入库会更新 `customs_business`，并重建对应费用明细。
+
+## 6. 新增数据表（流程模块）
+
+为了支持你当前前端的首页看板、流程跟踪和报表列表，本次后端新增了 3 张表（MySQL 与 SQLite 均已支持）：
+
+- `customs_process_record`：流程主记录（提单号、货物、港口、整体状态）
+- `customs_process_step`：10 步流程节点状态（PENDING/COMPLETE、完成时间、描述）
+- `customs_activity`：首页“最新动态”数据
+
+## 7. 新增数据表（成本模块）
+
+为了支持成本分析页面的后端化能力（汇率、计算结果落库、历史记录），新增了 3 张表：
+
+- `fx_rate_cache`：汇率缓存（当前主要存 USD/BRL）
+- `customs_cost_record`：成本计算主记录（费用输入、总量、总成本、单件成本）
+- `customs_cost_item`：每条成本记录下的商品明细（数量、分摊成本、单件成本）

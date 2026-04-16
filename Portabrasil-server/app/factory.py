@@ -5,9 +5,13 @@ from flask import Flask
 from app.core.responses import api_response
 from app.routes.auth import bp as auth_bp
 from app.routes.business import bp as business_bp
+from app.routes.cost import bp as cost_bp
+from app.routes.dashboard import bp as dashboard_bp
 from app.routes.documents import bp as documents_bp
 from app.routes.files import bp as files_bp
 from app.routes.health import bp as health_bp
+from app.routes.process import bp as process_bp
+from app.routes.reports import bp as reports_bp
 from app.routes.tasks import bp as tasks_bp
 from database import get_database
 
@@ -54,5 +58,9 @@ def create_app() -> Flask:
     app.register_blueprint(documents_bp)
     app.register_blueprint(business_bp)
     app.register_blueprint(tasks_bp)
+    app.register_blueprint(process_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(cost_bp)
 
     return app

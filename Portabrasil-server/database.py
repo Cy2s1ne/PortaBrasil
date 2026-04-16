@@ -153,6 +153,98 @@ CREATE TABLE IF NOT EXISTS user_role (
 
 CREATE INDEX IF NOT EXISTS idx_user_role_user_id ON user_role(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_role_role_id ON user_role(role_id);
+
+CREATE TABLE IF NOT EXISTS customs_process_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER,
+    bl_no TEXT NOT NULL UNIQUE,
+    goods_desc TEXT,
+    declaration_date TEXT,
+    port_name TEXT,
+    overall_status TEXT NOT NULL DEFAULT 'PROCESSING',
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(business_id) REFERENCES customs_business(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_process_record_status ON customs_process_record(overall_status);
+CREATE INDEX IF NOT EXISTS idx_process_record_date ON customs_process_record(declaration_date);
+
+CREATE TABLE IF NOT EXISTS customs_process_step (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    process_id INTEGER NOT NULL,
+    step_no INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    completion_time TEXT,
+    step_desc TEXT,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(process_id, step_no),
+    FOREIGN KEY(process_id) REFERENCES customs_process_record(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_process_step_process_id ON customs_process_step(process_id);
+CREATE INDEX IF NOT EXISTS idx_process_step_status ON customs_process_step(status);
+
+CREATE TABLE IF NOT EXISTS customs_activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    related_process_id INTEGER,
+    occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(related_process_id) REFERENCES customs_process_record(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_occurred_at ON customs_activity(occurred_at);
+
+CREATE TABLE IF NOT EXISTS fx_rate_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    base_currency TEXT NOT NULL,
+    quote_currency TEXT NOT NULL,
+    rate TEXT NOT NULL,
+    source TEXT,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(base_currency, quote_currency)
+);
+
+CREATE TABLE IF NOT EXISTS customs_cost_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    process_record_id INTEGER,
+    record_no TEXT NOT NULL UNIQUE,
+    customs_fee TEXT NOT NULL DEFAULT '0',
+    refund_fee TEXT NOT NULL DEFAULT '0',
+    usd_amount TEXT NOT NULL DEFAULT '0',
+    usd_rate TEXT NOT NULL DEFAULT '1',
+    other_fees TEXT NOT NULL DEFAULT '0',
+    total_qty TEXT NOT NULL DEFAULT '0',
+    total_base TEXT NOT NULL DEFAULT '0',
+    per_unit_cost TEXT NOT NULL DEFAULT '0',
+    currency TEXT NOT NULL DEFAULT 'BRL',
+    note TEXT,
+    created_by INTEGER,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(process_record_id) REFERENCES customs_process_record(id) ON DELETE SET NULL,
+    FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cost_record_process_id ON customs_cost_record(process_record_id);
+CREATE INDEX IF NOT EXISTS idx_cost_record_created_time ON customs_cost_record(created_time);
+
+CREATE TABLE IF NOT EXISTS customs_cost_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cost_record_id INTEGER NOT NULL,
+    line_no INTEGER,
+    product_name TEXT,
+    qty TEXT NOT NULL DEFAULT '0',
+    allocation_cost TEXT NOT NULL DEFAULT '0',
+    unit_cost TEXT NOT NULL DEFAULT '0',
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(cost_record_id) REFERENCES customs_cost_record(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_cost_item_cost_record_id ON customs_cost_item(cost_record_id);
 """
 
 
@@ -195,6 +287,8 @@ class Database:
         with self.connection() as conn:
             conn.executescript(SQLITE_SCHEMA)
             self.initialize_auth_seed(conn)
+            self.initialize_process_seed(conn)
+            self.initialize_cost_seed(conn)
 
     def initialize_auth_seed(self, conn) -> None:
         role_rows = [
@@ -223,6 +317,102 @@ class Database:
                 "INSERT OR IGNORE INTO user_role (user_id, role_id) VALUES (?, ?)",
                 (int(admin_row[0]), int(role_row[0])),
             )
+
+    def initialize_process_seed(self, conn) -> None:
+        rows = conn.execute("SELECT COUNT(*) FROM customs_process_record").fetchone()
+        if rows and int(rows[0]) > 0:
+            return
+
+        process_rows = [
+            ("BR2023082401", "工业机械零件", "2023-08-24", "Santos (SSZ)", "PROCESSING"),
+            ("BR2023082109", "电子消费产品", "2023-08-21", "Paranaguá (PNG)", "CLEARED"),
+            ("BR2023081944", "纺织原材料", "2023-08-19", "Rio de Janeiro", "INSPECTION"),
+            ("BR2023081522", "医疗器械设备", "2023-08-15", "Santos (SSZ)", "CLEARED"),
+            ("BR2023081011", "汽车零配件", "2023-08-10", "Itajaí (ITJ)", "CLEARED"),
+        ]
+        conn.executemany(
+            "INSERT INTO customs_process_record (bl_no, goods_desc, declaration_date, port_name, overall_status) VALUES (?, ?, ?, ?, ?)",
+            process_rows,
+        )
+
+        process_items = conn.execute("SELECT id, bl_no, overall_status FROM customs_process_record").fetchall()
+        step_rows: list[tuple[int, int, str, str | None, str]] = []
+        for item in process_items:
+            process_id = int(item[0])
+            bl_no = str(item[1])
+            overall_status = str(item[2])
+            for step_no in range(1, 11):
+                status = "PENDING"
+                completion_time: str | None = None
+                if overall_status == "CLEARED":
+                    status = "COMPLETE"
+                    completion_time = f"08-{step_no + 10:02d} 08:10"
+                elif overall_status == "INSPECTION":
+                    status = "COMPLETE" if step_no <= 6 else "PENDING"
+                    completion_time = f"08-{step_no + 10:02d} 08:10" if step_no <= 6 else None
+                else:
+                    status = "COMPLETE" if step_no <= 3 else "PENDING"
+                    completion_time = f"08-{step_no + 20:02d} 08:10" if step_no <= 3 else None
+                step_rows.append((process_id, step_no, status, completion_time, f"{bl_no} - step {step_no}"))
+
+        conn.executemany(
+            "INSERT INTO customs_process_step (process_id, step_no, status, completion_time, step_desc) VALUES (?, ?, ?, ?, ?)",
+            step_rows,
+        )
+
+        activity_rows = [
+            ("ALERT", "海关查验通知", "集装箱号 TCNU8473629 被抽中例行查验。"),
+            ("SUCCESS", "税费计算完成", "提单号 BR2023082401 关税已计算完成，等待支付。"),
+            ("INFO", "文件审核通过", "商业发票和装箱单已通过巴西海关审核系统 (Siscomex)。"),
+        ]
+        conn.executemany(
+            "INSERT INTO customs_activity (activity_type, title, description) VALUES (?, ?, ?)",
+            activity_rows,
+        )
+
+    def initialize_cost_seed(self, conn) -> None:
+        rows = conn.execute("SELECT COUNT(*) FROM customs_cost_record").fetchone()
+        if rows and int(rows[0]) > 0:
+            return
+
+        process_row = conn.execute("SELECT id FROM customs_process_record ORDER BY id ASC LIMIT 1").fetchone()
+        admin_row = conn.execute("SELECT id FROM users WHERE username = ?", ("admin",)).fetchone()
+        if not process_row:
+            return
+
+        record_no = f"COST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        record_id = conn.execute(
+            "INSERT INTO customs_cost_record (process_record_id, record_no, customs_fee, refund_fee, usd_amount, usd_rate, other_fees, total_qty, total_base, per_unit_cost, note, created_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                int(process_row[0]),
+                record_no,
+                "125000.00",
+                "2000.00",
+                "3000.00",
+                "5.1200",
+                "1800.00",
+                "600.00",
+                "140160.00",
+                "233.6000",
+                "初始化示例成本记录",
+                int(admin_row[0]) if admin_row else None,
+            ),
+        ).lastrowid
+
+        item_rows = [
+            (record_id, 1, "工业机械零件A", "250", "58400.00", "233.6000"),
+            (record_id, 2, "工业机械零件B", "350", "81760.00", "233.6000"),
+        ]
+        conn.executemany(
+            "INSERT INTO customs_cost_item (cost_record_id, line_no, product_name, qty, allocation_cost, unit_cost) VALUES (?, ?, ?, ?, ?, ?)",
+            item_rows,
+        )
+
+        conn.execute(
+            "INSERT OR REPLACE INTO fx_rate_cache (base_currency, quote_currency, rate, source, updated_at) VALUES (?, ?, ?, ?, ?)",
+            ("USD", "BRL", "5.1200", "seed", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        )
 
     @contextmanager
     def connection(self):
