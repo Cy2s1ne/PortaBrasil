@@ -4,6 +4,7 @@ from flask import Flask
 
 from app.core.responses import api_response
 from app.routes.ai_review import bp as ai_review_bp
+from app.routes.admin import bp as admin_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.business import bp as business_bp
 from app.routes.cost import bp as cost_bp
@@ -55,6 +56,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
     app.register_blueprint(files_bp)
     app.register_blueprint(documents_bp)
     app.register_blueprint(business_bp)

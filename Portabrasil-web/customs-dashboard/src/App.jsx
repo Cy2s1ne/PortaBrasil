@@ -10,6 +10,7 @@ import {
   Map as MapIcon,
   PieChart,
   Search,
+  ShieldCheck,
   UploadCloud,
 } from 'lucide-react';
 import LoginPage from './LoginPage';
@@ -18,7 +19,7 @@ import { AUTH_STORAGE_KEY, clearAuthStorage, persistAuth, readStoredAuth } from 
 import { API_BASE_URL } from './shared/config/api';
 import { LanguageContext } from './shared/i18n/language-context';
 import { TRANSLATIONS } from './shared/i18n/translations';
-import { CostAnalysisView, HomeView, ProcessTrackingView, ReportView, UploadView } from './views';
+import { AdminManagementView, CostAnalysisView, HomeView, ProcessTrackingView, ReportView, UploadView } from './views';
 
 const LANGS = ['zh', 'en', 'pt'];
 const LANG_LABELS = { zh: '中文', en: 'EN', pt: 'PT' };
@@ -31,6 +32,8 @@ export default function App() {
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
   const isLoggedIn = Boolean(auth?.access_token);
   const currentUserName = auth?.user?.real_name || auth?.user?.username || t.admin;
+  const currentRoles = auth?.user?.roles || [];
+  const canManageAdmins = currentRoles.includes('SUPER_ADMIN') || currentRoles.includes('ADMIN');
 
   useEffect(() => {
     if (!auth?.access_token) return;
@@ -88,6 +91,7 @@ export default function App() {
     { key: 'process', label: t.nav_process, icon: MapIcon },
     { key: 'cost', label: t.nav_cost, icon: PieChart },
     { key: 'report', label: t.nav_report, icon: BarChart2 },
+    ...(canManageAdmins ? [{ key: 'admin', label: t.nav_admin, icon: ShieldCheck }] : []),
   ];
 
   const renderContent = () => {
@@ -102,6 +106,9 @@ export default function App() {
         return <CostAnalysisView authToken={auth?.access_token} />;
       case 'report':
         return <ReportView authToken={auth?.access_token} />;
+      case 'admin':
+        if (!canManageAdmins) return <HomeView authToken={auth?.access_token} />;
+        return <AdminManagementView authToken={auth?.access_token} />;
       default:
         return <HomeView authToken={auth?.access_token} />;
     }
