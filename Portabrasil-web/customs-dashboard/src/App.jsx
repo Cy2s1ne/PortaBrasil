@@ -205,6 +205,42 @@ const useT = () => {
   return TRANSLATIONS[lang] || TRANSLATIONS.zh;
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001';
+const AUTH_STORAGE_KEY = 'portabrasil_auth';
+
+const readStoredAuth = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.access_token) {
+      return parsed;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const persistAuth = (authPayload, remember = true) => {
+  if (typeof window === 'undefined') return;
+  const serialized = JSON.stringify(authPayload);
+  if (remember) {
+    localStorage.setItem(AUTH_STORAGE_KEY, serialized);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  } else {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, serialized);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+};
+
+const clearAuthStorage = () => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+};
+
 // --- 数据模型 & 共享组件 ---
 
 const SidebarItem = ({ icon: Icon, label, isActive, onClick }) => {
@@ -1153,10 +1189,62 @@ const ReportView = () => {
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('home');
   const [lang, setLang] = useState('zh');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [auth, setAuth] = useState(() => readStoredAuth());
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
   const langs = ['zh', 'en', 'pt'];
   const langLabels = { zh: '中文', en: 'EN', pt: 'PT' };
+  const isLoggedIn = Boolean(auth?.access_token);
+  const currentUserName = auth?.user?.real_name || auth?.user?.username || t.admin;
+
+  useEffect(() => {
+    if (!auth?.access_token) return;
+    let active = true;
+
+    fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${auth.access_token}`,
+      },
+    })
+      .then(async (response) => {
+        if (!active) return;
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            clearAuthStorage();
+            setAuth(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (data?.user) {
+          const updatedAuth = { ...auth, user: data.user };
+          setAuth(updatedAuth);
+          const remembered = Boolean(localStorage.getItem(AUTH_STORAGE_KEY));
+          persistAuth(updatedAuth, remembered);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [auth?.access_token]);
+
+  const handleLogin = (authPayload) => {
+    const nextAuth = {
+      access_token: authPayload?.access_token || '',
+      user: authPayload?.user || null,
+    };
+    if (!nextAuth.access_token) return;
+    const remember = Boolean(authPayload?.remember);
+    persistAuth(nextAuth, remember);
+    setAuth(nextAuth);
+  };
+
+  const handleLogout = () => {
+    clearAuthStorage();
+    setAuth(null);
+  };
 
   const menuItems = [
     { key: 'home',    label: t.nav_home,    icon: Home },
@@ -1180,7 +1268,7 @@ export default function App() {
   const activeLabel = menuItems.find(m => m.key === activeMenu)?.label || '';
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+    return <LoginPage onLogin={handleLogin} lang={lang} onLangChange={setLang} />;
   }
 
   return (
@@ -1247,7 +1335,7 @@ export default function App() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
             </button>
-            <button onClick={() => setIsLoggedIn(false)} className="flex items-center space-x-1 text-gray-400 hover:text-red-500 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors border border-gray-200">
+            <button onClick={handleLogout} className="flex items-center space-x-1 text-gray-400 hover:text-red-500 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors border border-gray-200">
               <LogOut className="w-4 h-4" />
             </button>
             <div className="h-8 w-px bg-gray-200"></div>
@@ -1257,7 +1345,7 @@ export default function App() {
                 alt="User Avatar" 
                 className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 mr-2"
               />
-              <span className="font-medium text-sm text-gray-700">{t.admin}</span>
+              <span className="font-medium text-sm text-gray-700">{currentUserName}</span>
             </div>
           </div>
         </header>

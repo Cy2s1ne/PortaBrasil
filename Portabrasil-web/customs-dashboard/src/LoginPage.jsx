@@ -3,21 +3,221 @@ import { Eye, EyeOff, Anchor, Globe2 } from "lucide-react";
 import { AnimatedCharacters } from "./animated-characters";
 import { InteractiveHoverButton } from "./interactive-hover-button";
 
-export default function LoginPage({ onLogin }) {
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
+const LANGS = ["zh", "en", "pt"];
+const LANG_LABELS = { zh: "中文", en: "EN", pt: "PT" };
+
+const LOGIN_I18N = {
+  zh: {
+    welcomeTitle: "欢迎回来！",
+    welcomeDesc: "请输入账号和密码登录系统",
+    accountLabel: "账号 / 邮箱",
+    accountPlaceholder: "用户名或邮箱",
+    passwordLabel: "密码",
+    rememberLogin: "记住登录",
+    forgotPassword: "忘记密码？",
+    loginButton: "登录",
+    loginLoading: "登录中...",
+    loginRequired: "请输入账号和密码",
+    loginFailed: "登录失败，请检查账号和密码",
+    loginRetry: "登录失败，请稍后再试",
+    resetTitle: "重置密码",
+    resetRequired: "请填写用户名、邮箱和新密码",
+    resetLength: "新密码至少 6 位",
+    resetMismatch: "两次输入的新密码不一致",
+    resetFailed: "重置密码失败",
+    resetHint: "密码已重置，请使用新密码登录",
+    resetUsernamePh: "用户名",
+    resetEmailPh: "注册邮箱",
+    resetNewPasswordPh: "新密码",
+    resetConfirmPh: "确认新密码",
+    resetSubmitting: "提交中...",
+    resetButton: "重置密码",
+    privacy: "隐私政策",
+    terms: "服务条款",
+    langButton: "语言",
+  },
+  en: {
+    welcomeTitle: "Welcome Back!",
+    welcomeDesc: "Please sign in with your account and password",
+    accountLabel: "Account / E-mail",
+    accountPlaceholder: "Username or e-mail",
+    passwordLabel: "Password",
+    rememberLogin: "Remember me",
+    forgotPassword: "Forgot password?",
+    loginButton: "Sign in",
+    loginLoading: "Signing in...",
+    loginRequired: "Please enter account and password",
+    loginFailed: "Login failed. Please check your account and password",
+    loginRetry: "Login failed. Please try again later",
+    resetTitle: "Reset Password",
+    resetRequired: "Please fill username, e-mail and new password",
+    resetLength: "New password must be at least 6 characters",
+    resetMismatch: "The two passwords do not match",
+    resetFailed: "Password reset failed",
+    resetHint: "Password reset complete. Please sign in with the new password",
+    resetUsernamePh: "Username",
+    resetEmailPh: "Registered e-mail",
+    resetNewPasswordPh: "New password",
+    resetConfirmPh: "Confirm new password",
+    resetSubmitting: "Submitting...",
+    resetButton: "Reset password",
+    privacy: "Privacy Policy",
+    terms: "Terms of Service",
+    langButton: "Language",
+  },
+  pt: {
+    welcomeTitle: "Bem-vindo de volta!",
+    welcomeDesc: "Insira sua conta e senha para continuar",
+    accountLabel: "Conta / E-mail",
+    accountPlaceholder: "Usuário ou e-mail",
+    passwordLabel: "Senha",
+    rememberLogin: "Lembrar login",
+    forgotPassword: "Esqueceu a senha?",
+    loginButton: "Entrar",
+    loginLoading: "Entrando...",
+    loginRequired: "Informe conta e senha",
+    loginFailed: "Falha no login. Verifique conta e senha",
+    loginRetry: "Falha no login. Tente novamente mais tarde",
+    resetTitle: "Redefinir senha",
+    resetRequired: "Preencha usuário, e-mail e nova senha",
+    resetLength: "A nova senha deve ter pelo menos 6 caracteres",
+    resetMismatch: "As senhas não coincidem",
+    resetFailed: "Falha ao redefinir senha",
+    resetHint: "Senha redefinida. Faça login com a nova senha",
+    resetUsernamePh: "Usuário",
+    resetEmailPh: "E-mail cadastrado",
+    resetNewPasswordPh: "Nova senha",
+    resetConfirmPh: "Confirmar nova senha",
+    resetSubmitting: "Enviando...",
+    resetButton: "Redefinir senha",
+    privacy: "Política de Privacidade",
+    terms: "Termos de Serviço",
+    langButton: "Idioma",
+  },
+};
+
+export default function LoginPage({ onLogin, lang = "zh", onLangChange }) {
+  const resolvedLang = LANGS.includes(lang) ? lang : "zh";
+  const t = LOGIN_I18N[resolvedLang];
+
   const [showPassword, setShowPassword] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+
+  const [showForgotPanel, setShowForgotPanel] = useState(false);
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetInfo, setResetInfo] = useState("");
 
   const passwordLength = password.length;
 
+  const toggleLanguage = () => {
+    if (!onLangChange) return;
+    const currentIndex = LANGS.indexOf(resolvedLang);
+    const nextLang = LANGS[(currentIndex + 1) % LANGS.length];
+    onLangChange(nextLang);
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!account.trim() || !password) {
+      setErrorMessage(t.loginRequired);
+      return;
+    }
+
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsLoading(false);
-    onLogin();
+    setErrorMessage("");
+    setInfoMessage("");
+
+    try {
+      const loginPayload = account.includes("@")
+        ? { email: account.trim(), password }
+        : { username: account.trim(), password };
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(loginPayload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || t.loginFailed);
+      }
+
+      onLogin?.({
+        access_token: data.access_token,
+        user: data.user,
+        remember: rememberMe,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || t.loginRetry);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onForgotPassword = async (e) => {
+    e.preventDefault();
+    setResetError("");
+    setResetInfo("");
+
+    if (!resetUsername.trim() || !resetEmail.trim() || !resetPassword) {
+      setResetError(t.resetRequired);
+      return;
+    }
+    if (resetPassword.length < 6) {
+      setResetError(t.resetLength);
+      return;
+    }
+    if (resetPassword !== resetPasswordConfirm) {
+      setResetError(t.resetMismatch);
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: resetUsername.trim(),
+          email: resetEmail.trim(),
+          new_password: resetPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || t.resetFailed);
+      }
+
+      setResetInfo(data.message || t.resetHint);
+      setInfoMessage(t.resetHint);
+      setAccount(resetUsername.trim());
+      setPassword("");
+      setResetPassword("");
+      setResetPasswordConfirm("");
+      setShowForgotPanel(false);
+    } catch (error) {
+      setResetError(error.message || t.resetFailed);
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   return (
@@ -73,8 +273,8 @@ export default function LoginPage({ onLogin }) {
 
         {/* Footer links */}
         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-6 text-xs text-white/40 z-20">
-          <a href="#" className="hover:text-white/70 transition-colors">Política de Privacidade</a>
-          <a href="#" className="hover:text-white/70 transition-colors">Termos de Serviço</a>
+          <a href="#" className="hover:text-white/70 transition-colors">{t.privacy}</a>
+          <a href="#" className="hover:text-white/70 transition-colors">{t.terms}</a>
         </div>
 
         {/* Brand watermark */}
@@ -96,26 +296,47 @@ export default function LoginPage({ onLogin }) {
           </div>
 
           <div className="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50">
-            {/* Header */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">Bem-vindo de volta!</h2>
-              <p className="text-sm text-slate-500">Por favor, insira seus dados para continuar</p>
+            <div className="mb-6 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">{t.welcomeTitle}</h2>
+                <p className="text-sm text-slate-500">{t.welcomeDesc}</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <Globe2 className="w-3.5 h-3.5" />
+                {t.langButton}: {LANG_LABELS[resolvedLang]}
+              </button>
             </div>
+
+            {errorMessage ? (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            {infoMessage ? (
+              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {infoMessage}
+              </div>
+            ) : null}
 
             {/* Form */}
             <form onSubmit={onSubmit} className="space-y-5">
-              {/* Email */}
+              {/* Account */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  E-mail
+                  {t.accountLabel}
                 </label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={account}
+                  onChange={(e) => setAccount(e.target.value)}
                   onFocus={() => setIsTyping(true)}
                   onBlur={() => setIsTyping(false)}
-                  placeholder="seu@email.com.br"
+                  placeholder={t.accountPlaceholder}
                   required
                   className="w-full h-12 px-4 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
                 />
@@ -124,7 +345,7 @@ export default function LoginPage({ onLogin }) {
               {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Senha
+                  {t.passwordLabel}
                 </label>
                 <div className="relative">
                   <input
@@ -153,48 +374,94 @@ export default function LoginPage({ onLogin }) {
               {/* Remember + Forgot */}
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" />
-                  <span className="text-sm text-slate-500">Lembrar por 30 dias</span>
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-500">{t.rememberLogin}</span>
                 </label>
-                <a href="#" className="text-sm text-blue-600 hover:underline font-medium">Esqueceu a senha?</a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetError("");
+                    setResetInfo("");
+                    setShowForgotPanel((prev) => !prev);
+                  }}
+                  className="text-sm text-blue-600 hover:underline font-medium"
+                >
+                  {t.forgotPassword}
+                </button>
               </div>
 
               {/* Submit */}
               <InteractiveHoverButton
                 type="submit"
-                text="Entrar"
+                text={isLoading ? t.loginLoading : t.loginButton}
                 disabled={isLoading}
                 className="w-full"
               />
             </form>
 
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="px-4 text-xs text-slate-400 font-medium">ou</span>
-              <div className="flex-1 h-px bg-slate-200" />
-            </div>
+            {showForgotPanel ? (
+              <form onSubmit={onForgotPassword} className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div className="text-sm font-semibold text-slate-700">{t.resetTitle}</div>
 
-            {/* Google sign-in */}
-            <button
-              type="button"
-              onClick={onSubmit}
-              className="w-full h-12 flex items-center justify-center gap-3 rounded-full border-2 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-medium text-sm transition-all"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-              </svg>
-              Entrar com Google
-            </button>
+                {resetError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {resetError}
+                  </div>
+                ) : null}
 
-            {/* Sign up link */}
-            <p className="text-center text-sm text-slate-500 mt-6">
-              Não tem uma conta?{" "}
-              <a href="#" className="text-blue-600 font-semibold hover:underline">Criar Conta</a>
-            </p>
+                {resetInfo ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                    {resetInfo}
+                  </div>
+                ) : null}
+
+                <input
+                  type="text"
+                  value={resetUsername}
+                  onChange={(e) => setResetUsername(e.target.value)}
+                  placeholder={t.resetUsernamePh}
+                  required
+                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                />
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder={t.resetEmailPh}
+                  required
+                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                />
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder={t.resetNewPasswordPh}
+                  required
+                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                />
+                <input
+                  type="password"
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                  placeholder={t.resetConfirmPh}
+                  required
+                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                />
+
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full h-10 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {resetLoading ? t.resetSubmitting : t.resetButton}
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
       </div>
