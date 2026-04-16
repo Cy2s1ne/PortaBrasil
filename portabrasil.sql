@@ -205,3 +205,71 @@ CREATE TABLE statement_summary_item (
 
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- =========================================================
+-- 7. 用户表
+-- =========================================================
+DROP TABLE IF EXISTS user_role;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS roles;
+
+CREATE TABLE users (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    real_name VARCHAR(50),
+    phone VARCHAR(20),
+    email VARCHAR(100),
+
+    status TINYINT DEFAULT 1, -- 1正常 0禁用
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- =========================================================
+-- 8. 角色表
+-- =========================================================
+CREATE TABLE roles (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_name VARCHAR(50) NOT NULL UNIQUE,
+    role_code VARCHAR(50) NOT NULL UNIQUE, -- 用于程序判断
+    description VARCHAR(255)
+);
+
+-- =========================================================
+-- 9. 用户-角色关联表
+-- =========================================================
+CREATE TABLE user_role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_role (user_id, role_id),
+    KEY idx_user_id (user_id),
+    KEY idx_role_id (role_id),
+    CONSTRAINT fk_user_role_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_user_role_role
+        FOREIGN KEY (role_id) REFERENCES roles(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+
+INSERT INTO roles (role_name, role_code, description) VALUES
+('超级管理员', 'SUPER_ADMIN', '系统最高权限'),
+('管理员', 'ADMIN', '管理系统数据'),
+('货代', 'FORWARDER', '货代业务角色'),
+('报关员', 'CUSTOMS', '报关业务角色'),
+('财务人员', 'FINANCE', '财务业务角色');
+
+-- 默认管理员：admin / admin123456（SHA-256）
+INSERT INTO users (username, password, real_name, status, email)
+VALUES ('admin', 'ac0e7d037817094e9e0b4441f9bae3209d67b02fa484917065f71b16109a1a78', '系统管理员', 1, 'admin@portabrasil.local');
+
+INSERT INTO user_role (user_id, role_id)
+SELECT u.id, r.id
+FROM users u
+JOIN roles r ON r.role_code = 'SUPER_ADMIN'
+WHERE u.username = 'admin';

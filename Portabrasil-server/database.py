@@ -3,6 +3,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal
+import hashlib
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
@@ -120,6 +121,38 @@ CREATE TABLE IF NOT EXISTS customs_business_fee_item (
 CREATE INDEX IF NOT EXISTS idx_fee_item_business_id ON customs_business_fee_item(business_id);
 CREATE INDEX IF NOT EXISTS idx_fee_item_fee_code ON customs_business_fee_item(fee_code);
 CREATE INDEX IF NOT EXISTS idx_fee_item_fee_date ON customs_business_fee_item(fee_date);
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    real_name TEXT,
+    phone TEXT,
+    email TEXT,
+    status INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_name TEXT NOT NULL UNIQUE,
+    role_code TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_role (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, role_id),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_role_user_id ON user_role(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_role_role_id ON user_role(role_id);
 """
 
 
@@ -161,6 +194,35 @@ class Database:
 
         with self.connection() as conn:
             conn.executescript(SQLITE_SCHEMA)
+            self.initialize_auth_seed(conn)
+
+    def initialize_auth_seed(self, conn) -> None:
+        role_rows = [
+            ("超级管理员", "SUPER_ADMIN", "系统最高权限"),
+            ("管理员", "ADMIN", "管理系统数据"),
+            ("货代", "FORWARDER", "货代业务角色"),
+            ("报关员", "CUSTOMS", "报关业务角色"),
+            ("财务人员", "FINANCE", "财务业务角色"),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO roles (role_name, role_code, description) VALUES (?, ?, ?)",
+            role_rows,
+        )
+
+        admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+        admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123456")
+        admin_hash = hashlib.sha256(admin_password.encode("utf-8")).hexdigest()
+        conn.execute(
+            "INSERT OR IGNORE INTO users (username, password, real_name, status, email) VALUES (?, ?, ?, 1, ?)",
+            (admin_username, admin_hash, "系统管理员", "admin@portabrasil.local"),
+        )
+        admin_row = conn.execute("SELECT id FROM users WHERE username = ?", (admin_username,)).fetchone()
+        role_row = conn.execute("SELECT id FROM roles WHERE role_code = 'SUPER_ADMIN'").fetchone()
+        if admin_row and role_row:
+            conn.execute(
+                "INSERT OR IGNORE INTO user_role (user_id, role_id) VALUES (?, ?)",
+                (int(admin_row[0]), int(role_row[0])),
+            )
 
     @contextmanager
     def connection(self):

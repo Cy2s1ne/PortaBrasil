@@ -11,10 +11,19 @@
       "description": "本地开发服务"
     }
   ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
   "tags": [
     {
       "name": "Health",
       "description": "服务健康检查"
+    },
+    {
+      "name": "Auth",
+      "description": "用户登录、注册、鉴权和用户管理"
     },
     {
       "name": "Files",
@@ -40,6 +49,7 @@
         "summary": "健康检查",
         "description": "检查 Flask 服务是否正常运行，并返回当前数据库后端类型。",
         "operationId": "healthCheck",
+        "security": [],
         "responses": {
           "200": {
             "description": "服务正常",
@@ -59,6 +69,234 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "账号登录",
+        "description": "支持 username 或 email 登录，校验密码（SHA-256）后返回 JWT。",
+        "operationId": "authLogin",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "examples": {
+                "byUsername": {
+                  "summary": "用户名登录",
+                  "value": {
+                    "username": "admin",
+                    "password": "admin123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "公开注册",
+        "description": "注册新用户并自动分配默认角色（由 DEFAULT_REGISTER_ROLE 控制，默认 FORWARDER），成功后直接返回 JWT。",
+        "operationId": "authRegister",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              },
+              "examples": {
+                "sample": {
+                  "summary": "注册示例",
+                  "value": {
+                    "username": "newuser",
+                    "password": "123456",
+                    "email": "newuser@example.com",
+                    "real_name": "新用户"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "忘记密码重置",
+        "description": "通过用户名+邮箱重置密码（内网简化版本）。",
+        "operationId": "authForgotPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              },
+              "examples": {
+                "sample": {
+                  "summary": "重置示例",
+                  "value": {
+                    "username": "admin",
+                    "email": "admin@portabrasil.local",
+                    "new_password": "newpass123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "重置成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "密码重置成功，请使用新密码登录"
+                    }
+                  },
+                  "required": ["message"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "获取当前登录用户",
+        "description": "根据 Bearer Token 返回当前用户信息和角色。",
+        "operationId": "authMe",
+        "responses": {
+          "200": {
+            "description": "当前用户信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/auth/users": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "管理员创建用户",
+        "description": "仅 SUPER_ADMIN/ADMIN 可调用。创建用户并分配角色。",
+        "operationId": "createUserByAdmin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              },
+              "examples": {
+                "sample": {
+                  "summary": "创建用户示例",
+                  "value": {
+                    "username": "zhangsan",
+                    "password": "123456",
+                    "real_name": "张三",
+                    "email": "zhangsan@example.com",
+                    "role_codes": ["CUSTOMS"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -449,6 +687,14 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "在请求头中添加：Authorization: Bearer <access_token>"
+      }
+    },
     "parameters": {
       "FileId": {
         "name": "file_id",
@@ -499,6 +745,57 @@
           }
         }
       },
+      "Unauthorized": {
+        "description": "未登录或 Token 无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "unauthorized": {
+                "value": {
+                  "error": "缺少或无效 Authorization Bearer Token"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "权限不足",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "forbidden": {
+                "value": {
+                  "error": "权限不足"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "资源冲突（如用户名已存在）",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "conflict": {
+                "value": {
+                  "error": "用户名已存在"
+                }
+              }
+            }
+          }
+        }
+      },
       "NotFound": {
         "description": "资源不存在",
         "content": {
@@ -535,6 +832,199 @@
       }
     },
     "schemas": {
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "real_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "系统管理员"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "13800000000"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "admin@portabrasil.local"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [0, 1],
+            "example": 1
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-16 12:30:00"
+          },
+          "updated_at": {
+            "type": "string",
+            "example": "2026-04-16 12:30:00"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "SUPER_ADMIN"
+            }
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "用户名，username/email/account 三选一",
+            "example": "admin"
+          },
+          "email": {
+            "type": "string",
+            "description": "邮箱，username/email/account 三选一",
+            "example": "admin@portabrasil.local"
+          },
+          "account": {
+            "type": "string",
+            "description": "账号别名字段，等同 username/email",
+            "example": "admin"
+          },
+          "password": {
+            "type": "string",
+            "example": "admin123456"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "newuser"
+          },
+          "password": {
+            "type": "string",
+            "example": "123456"
+          },
+          "real_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "新用户"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "13800000000"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "newuser@example.com"
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": ["username", "email", "new_password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@portabrasil.local"
+          },
+          "new_password": {
+            "type": "string",
+            "example": "newpass123"
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": ["username", "password", "role_codes"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "zhangsan"
+          },
+          "password": {
+            "type": "string",
+            "example": "123456"
+          },
+          "real_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "张三"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "13800000000"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "zhangsan@example.com"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [0, 1],
+            "default": 1,
+            "example": 1
+          },
+          "role_codes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["SUPER_ADMIN", "ADMIN", "FORWARDER", "CUSTOMS", "FINANCE"]
+            },
+            "example": ["CUSTOMS"]
+          }
+        }
+      },
+      "AuthTokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "token_type": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "example": 7200
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        },
+        "required": ["access_token", "token_type", "expires_in", "user"]
+      },
+      "CurrentUserResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        },
+        "required": ["user"]
+      },
       "ParseStatus": {
         "type": "string",
         "enum": ["PENDING", "PROCESSING", "SUCCESS", "FAILED"],

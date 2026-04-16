@@ -2,6 +2,29 @@
 
 这个后端负责 PDF 上传、智谱 PDF 解析、解析文本规则化、写入 `portabrasil.sql` 中的业务表，以及基础查询接口。
 
+## 0. 工程化结构
+
+当前后端已按模块拆分，入口与路由职责分离：
+
+```text
+Portabrasil-server/
+├── main.py                  # 启动入口（仅 create_app + run）
+├── app/
+│   ├── factory.py           # Flask app factory（配置、CORS、错误处理、蓝图注册）
+│   ├── core/
+│   │   ├── auth.py          # JWT、密码哈希、鉴权装饰器、用户查询
+│   │   └── responses.py     # 统一 JSON 响应与序列化
+│   └── routes/
+│       ├── health.py        # 健康检查
+│       ├── auth.py          # 登录/注册/忘记密码/用户管理
+│       ├── files.py         # 文件上传、解析、查询
+│       ├── documents.py     # 文本入库
+│       ├── business.py      # 业务与费用查询
+│       └── tasks.py         # 任务查询
+├── database.py              # 数据库连接与初始化（MySQL/SQLite）
+└── services.py              # PDF 解析与业务入库服务逻辑
+```
+
 ## 1. 安装依赖
 
 ```bash
@@ -26,6 +49,8 @@ mysql -u root -p portabrasil < ../portabrasil.sql
 export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=utf8mb4'
 export ZHIPU_API_KEY='你的智谱APIKey'
 export UPLOAD_DIR='./uploads'
+export JWT_SECRET='请换成你自己的长随机字符串'
+export JWT_EXPIRES_MINUTES='120'
 ```
 
 `.env.example` 只作为字段模板，不要把真实密钥写进仓库。如果你仍然想在本地保留 `.env` 给 IDE 使用，根目录 `.gitignore` 已经忽略 `.env`、`*.env` 和 `Portabrasil-server/.env`。
@@ -36,7 +61,7 @@ export UPLOAD_DIR='./uploads'
 
 ```bash
 cd Portabrasil-server
-uv run flask --app main run --host 0.0.0.0 --port 5000 --debug
+uv run flask --app main run --host 0.0.0.0 --port 5001 --debug
 ```
 
 或：
@@ -53,10 +78,49 @@ uv run python main.py
 GET /api/health
 ```
 
+### 登录获取 JWT
+
+```bash
+curl -X POST http://127.0.0.1:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123456"}'
+```
+
+默认管理员账号（来自 `portabrasil.sql`）：
+
+- 用户名：`admin`
+- 密码：`admin123456`
+
+登录成功后会返回 `access_token`，后续请求要带：
+
+```http
+Authorization: Bearer <access_token>
+```
+
+除 `GET /api/health` 和 `POST /api/auth/login` 之外，其他 API 默认都需要登录。
+
+### 注册账号（公开）
+
+```bash
+curl -X POST http://127.0.0.1:5001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","password":"123456","email":"newuser@example.com"}'
+```
+
+注册成功会直接返回 `access_token`。默认分配角色由环境变量 `DEFAULT_REGISTER_ROLE` 控制，默认是 `FORWARDER`。
+
+### 忘记密码（重置）
+
+```bash
+curl -X POST http://127.0.0.1:5001/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","email":"admin@portabrasil.local","new_password":"newpass123"}'
+```
+
 ### 上传 PDF 并立即解析入库
 
 ```bash
-curl -X POST http://127.0.0.1:5000/api/files/upload \
+curl -X POST http://127.0.0.1:5001/api/files/upload \
   -F "file=@p2s.pdf" \
   -F "parse=true"
 ```
@@ -74,7 +138,7 @@ curl -X POST http://127.0.0.1:5000/api/files/upload \
 ### 上传但暂不解析
 
 ```bash
-curl -X POST http://127.0.0.1:5000/api/files/upload \
+curl -X POST http://127.0.0.1:5001/api/files/upload \
   -F "file=@p2s.pdf" \
   -F "parse=false"
 ```
@@ -90,7 +154,7 @@ POST /api/files/{file_id}/parse
 适合把智谱返回的 `content` 或你已有的解析结果直接写入数据库：
 
 ```bash
-curl -X POST http://127.0.0.1:5000/api/documents/from-text \
+curl -X POST http://127.0.0.1:5001/api/documents/from-text \
   -H "Content-Type: application/json" \
   -d '{"raw_text":"LOGIMEX COMERCIO EXTERIOR LTDA ..."}'
 ```
@@ -104,6 +168,27 @@ GET /api/business?q=20250528000158
 GET /api/business/{business_id}
 GET /api/business/{business_id}/fees
 GET /api/tasks/{task_id}
+```
+
+### 用户与角色管理
+
+```http
+GET /api/auth/me
+POST /api/auth/register
+POST /api/auth/forgot-password
+POST /api/auth/users   # 仅 SUPER_ADMIN / ADMIN 可调用
+```
+
+`POST /api/auth/users` 请求体示例：
+
+```json
+{
+  "username": "zhangsan",
+  "password": "123456",
+  "real_name": "张三",
+  "email": "zhangsan@example.com",
+  "role_codes": ["CUSTOMS"]
+}
 ```
 
 ## 5. 解析规则说明
