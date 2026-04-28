@@ -89,8 +89,7 @@ PortaBrasil/
 │   ├── services.py               # Business logic services
 │   ├── pdf_parser.py            # Zhipu AI PDF parser
 │   ├── parser_rules.py           # Regex rules for field extraction
-│   ├── sql/
-│   │   └── migrations/           # Incremental MySQL migrations
+│   ├── sql/                        # SQL schema directory
 │   └── instance/                 # SQLite DB auto-created here
 │
 ├── Portabrasil-web/
@@ -244,10 +243,11 @@ Frontend at `http://localhost:5173` proxies API to `http://localhost:5001`.
 | Production | MySQL 8.x | `portabrasil.sql` (full dump) |
 | Development | SQLite | Auto-created by `database.py` |
 
-**MySQL incremental migrations** (existing database upgrade):
+**MySQL incremental migrations** (existing database upgrade — no longer needed, all tables are in `portabrasil.sql`):
 ```bash
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_cost_module_tables.sql
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_ai_review_tables.sql
+# All tables are included in portabrasil.sql. If you have an existing database,
+# drop and re-import for a clean setup:
+mysql -u root -p portabrasil < portabrasil.sql
 ```
 
 **Core tables**: `pdf_file`, `pdf_parse_task`, `customs_business`, `customs_business_fee_item`, `users`, `roles`, `user_role`, `customs_process_record`, `customs_process_step`, `customs_activity`, `fx_rate_cache`, `customs_cost_record`, `customs_cost_item`, `ai_audit_run`, `ai_audit_finding`, `ai_finance_review`, `ai_finance_item`
@@ -435,10 +435,10 @@ mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_ai
 ┌─────────────────────▼───────────────────────────────────┐
 │            Flask 后端 API                                │
 │  http://localhost:5001 /api/*                           │
-│  ┌──────────┬───────────┬───────────┬─────────────┐      │
-│  │ 认证模块  │ PDF 解析  │ 业务与成本 │ AI 审计与   │      │
-│  │          │          │           │ 财务复核    │      │
-│  └──────────┴───────────┴───────────┴─────────────┘      │
+│  ┌──────────┬───────────┬───────────┬─────────────┐     │
+│  │ 认证模块  │ PDF 解析   │ 业务与成本  │ AI 审计与    │    │
+│  │          │           │           │ 财务复核      │    │
+│  └──────────┴───────────┴───────────┴─────────────┘    │
 └─────────────────────┬───────────────────────────────────┘
                       │ SQL
 ┌─────────────────────▼───────────────────────────────────┐
@@ -493,7 +493,7 @@ PortaBrasil/
 │   ├── pdf_parser.py            # 智谱 AI PDF 解析器
 │   ├── parser_rules.py           # 正则提取规则
 │   ├── sql/
-│   │   └── migrations/           # 增量迁移脚本
+│   ├── sql/                        # SQL 模式目录
 │   └── instance/                 # SQLite 数据库自动创建于此
 │
 ├── Portabrasil-web/
@@ -647,10 +647,10 @@ npm run dev
 | 生产环境 | MySQL 8.x | `portabrasil.sql`（完整模式） |
 | 开发环境 | SQLite | 由 `database.py` 自动创建 |
 
-**MySQL 增量迁移**（已有数据库升级）：
+**MySQL 增量迁移**（已不需要，所有表已整合到 `portabrasil.sql`）：
 ```bash
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_cost_module_tables.sql
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_ai_review_tables.sql
+# 所有表均在 portabrasil.sql 中，已有数据库直接重新导入即可：
+mysql -u root -p portabrasil < ../portabrasil.sql
 ```
 
 **核心数据表**：`pdf_file`、`pdf_parse_task`、`customs_business`、`customs_business_fee_item`、`users`、`roles`、`user_role`、`customs_process_record`、`customs_process_step`、`customs_activity`、`fx_rate_cache`、`customs_cost_record`、`customs_cost_item`、`ai_audit_run`、`ai_audit_finding`、`ai_finance_review`、`ai_finance_item`
@@ -838,15 +838,15 @@ Público-alvo: empresas de logística, despachantes aduaneiros e transitários.
 ┌─────────────────────▼───────────────────────────────────┐
 │              Backend Flask                              │
 │  http://localhost:5001 /api/*                           │
-│  ┌──────────┬───────────┬───────────┬─────────────┐    │
-│  │ Autent.  │ Análise   │ Negócio & │ Auditoria & │    │
-│  │          │ PDF       │ Custo     │ Rev. Finan. │    │
-│  └──────────┴───────────┴───────────┴─────────────┘    │
+│  ┌──────────┬───────────┬───────────┬─────────────┐     │
+│  │ Autent.  │ Análise   │ Negócio & │ Auditoria & │     │
+│  │          │ PDF       │ Custo     │ Rev. Finan. │     │
+│  └──────────┴───────────┴───────────┴─────────────┘     │
 └─────────────────────┬───────────────────────────────────┘
                       │ SQL
 ┌─────────────────────▼───────────────────────────────────┐
 │         MySQL 8.x  (produção)                           │
-│         SQLite      (desenvolvimento, auto-criado)       │
+│         SQLite      (desenvolvimento, auto-criado)      │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -896,7 +896,7 @@ PortaBrasil/
 │   ├── pdf_parser.py            # Parser de PDF via Zhipu AI
 │   ├── parser_rules.py           # Regras regex para extração de campos
 │   ├── sql/
-│   │   └── migrations/           # Migrações incrementais MySQL
+│   ├── sql/                        # Diretório do esquema SQL
 │   └── instance/                 # SQLite DB auto-criado aqui
 │
 ├── Portabrasil-web/
@@ -1050,10 +1050,10 @@ Frontend em `http://localhost:5173`, faz proxy da API para `http://localhost:500
 | Produção | MySQL 8.x | `portabrasil.sql` (dump completo) |
 | Desenvolvimento | SQLite | Auto-criado por `database.py` |
 
-**Migrações incrementais MySQL** (upgrade de banco existente):
+**Migrações incrementais MySQL** (não são mais necessárias, todas as tabelas estão em `portabrasil.sql`):
 ```bash
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_cost_module_tables.sql
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_ai_review_tables.sql
+# Todas as tabelas estão em portabrasil.sql. Para banco existente, basta reimportar:
+mysql -u root -p portabrasil < ../portabrasil.sql
 ```
 
 **Tabelas principais**: `pdf_file`, `pdf_parse_task`, `customs_business`, `customs_business_fee_item`, `users`, `roles`, `user_role`, `customs_process_record`, `customs_process_step`, `customs_activity`, `fx_rate_cache`, `customs_cost_record`, `customs_cost_item`, `ai_audit_run`, `ai_audit_finding`, `ai_finance_review`, `ai_finance_item`

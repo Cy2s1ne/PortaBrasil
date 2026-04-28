@@ -101,8 +101,7 @@ PortaBrasil/
 │   ├── services.py              # Serviços de lógica de negócio
 │   ├── pdf_parser.py            # Parser de PDF via Zhipu AI
 │   ├── parser_rules.py           # Regras regex para extração
-│   ├── sql/
-│   │   └── migrations/           # Migrações incrementais MySQL
+│   ├── sql/                        # Diretório do esquema SQL
 │   └── instance/                 # SQLite DB auto-criado aqui
 │
 ├── Portabrasil-web/
@@ -256,10 +255,10 @@ Frontend em `http://localhost:5173`, faz proxy da API para `http://localhost:500
 | Produção | MySQL 8.x | `portabrasil.sql` (dump completo) |
 | Desenvolvimento | SQLite | Auto-criado por `database.py` |
 
-**Migrações incrementais MySQL** (upgrade de banco existente):
+**Migrações incrementais MySQL** (não são mais necessárias, todas as tabelas estão em `portabrasil.sql`):
 ```bash
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_cost_module_tables.sql
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_ai_review_tables.sql
+# Todas as tabelas estão em portabrasil.sql. Para banco existente, basta reimportar:
+mysql -u root -p portabrasil < ../../portabrasil.sql
 ```
 
 **Tabelas principais**: `pdf_file`, `pdf_parse_task`, `customs_business`, `customs_business_fee_item`, `users`, `roles`, `user_role`, `customs_process_record`, `customs_process_step`, `customs_activity`, `fx_rate_cache`, `customs_cost_record`, `customs_cost_item`, `ai_audit_run`, `ai_audit_finding`, `ai_finance_review`, `ai_finance_item`

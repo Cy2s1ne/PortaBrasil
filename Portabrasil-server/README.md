@@ -47,13 +47,7 @@ mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER
 mysql -u root -p portabrasil < ../portabrasil.sql
 ```
 
-如果你是**已有数据库升级**（不想全量 `DROP/CREATE`），可以执行增量迁移：
-
-```bash
-mysql -u root -p portabrasil < sql/migrations/20260416_add_cost_module_tables.sql
-```
-
-服务只通过 `os.getenv` 读取系统环境变量，不会自动读取 `.env` 文件。开发阶段推荐直接在终端导出变量：
+> 服务只通过 `os.getenv` 读取系统环境变量，不会自动读取 `.env` 文件。开发阶段推荐直接在终端导出变量：
 
 ```bash
 export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=utf8mb4'

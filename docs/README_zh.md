@@ -101,8 +101,7 @@ PortaBrasil/
 │   ├── services.py               # 业务逻辑服务
 │   ├── pdf_parser.py             # 智谱 AI PDF 解析器
 │   ├── parser_rules.py           # 正则提取规则
-│   ├── sql/
-│   │   └── migrations/           # 增量迁移脚本
+│   ├── sql/                        # SQL 模式目录
 │   └── instance/                 # SQLite 数据库自动创建于此
 │
 ├── Portabrasil-web/
@@ -295,12 +294,9 @@ npm run dev
 
 ### 增量迁移（MySQL）
 
-已有数据库不想全量重建时，执行增量迁移：
-
+已不需要，所有表已整合到 `portabrasil.sql`，已有数据库直接重新导入即可：
 ```bash
-# 成本模块 + 汇率缓存 + AI 审核相关表
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_cost_module_tables.sql
-mysql -u root -p portabrasil < Portabrasil-server/sql/migrations/20260416_add_ai_review_tables.sql
+mysql -u root -p portabrasil < ../../portabrasil.sql
 ```
 
 ### 核心数据表
