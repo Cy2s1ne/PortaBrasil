@@ -134,6 +134,7 @@ PortaBrasil/
 ├── portabrasil.sql                # MySQL 完整模式导出
 └── docs/
     ├── README.md                # 英文 README
+    ├── README_pt.md            # 葡萄牙语版
     └── 系统模块流程图.md          # 模块流程图（Mermaid）
 ```
 
