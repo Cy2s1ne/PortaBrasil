@@ -126,4 +126,4 @@ Portabrasil-server/uploads/
 *.rej
 *.swp
 *.swo
-.DS_Store
+.spec-workflow/
