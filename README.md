@@ -32,10 +32,10 @@ Target users: logistics companies, customs brokers, and freight forwarders.
 ┌─────────────────────▼───────────────────────────────────┐
 │            Flask Backend                                │
 │  http://localhost:5001 /api/*                           │
-│  ┌──────────┬───────────┬───────────┬─────────────┐    │
-│  │ Auth     │ PDF Parse │ Business  │ AI Audit &  │    │
-│  │ Module   │ Module    │ & Cost    │ Finance Rev │    │
-│  └──────────┴───────────┴───────────┴─────────────┘    │
+│  ┌──────────┬───────────┬───────────┬─────────────┐     │
+│  │ Auth     │ PDF Parse │ Business  │ AI Audit &  │     │
+│  │ Module   │ Module    │ & Cost    │ Finance Rev │     │
+│  └──────────┴───────────┴───────────┴─────────────┘     │
 └─────────────────────┬───────────────────────────────────┘
                       │ SQL
 ┌─────────────────────▼───────────────────────────────────┐
@@ -191,9 +191,9 @@ export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=ut
 export ZHIPU_API_KEY='your-zhipu-api-key'
 export JWT_SECRET='your-long-random-secret-here'
 export UPLOAD_DIR=''
-export DASHSCOPE_API_KEY=''
-export FX_API_ID=''
-export FX_API_KEY=''
+export DASHSCOPE_API_KEY='your-dashscope-api-key'
+export FX_API_ID='your-fx-api-id'
+export FX_API_KEY='your-fx-api-key'
 
 # MySQL: initialize database
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -432,22 +432,22 @@ mysql -u root -p portabrasil < portabrasil.sql
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│            浏览器 (React SPA)                            │
-│  http://localhost:5173                                  │
+│                   浏览器 (React SPA)                     │
+│                 http://localhost:5173                   │
 └─────────────────────┬───────────────────────────────────┘
                       │ HTTP / REST API (JSON)
 ┌─────────────────────▼───────────────────────────────────┐
-│            Flask 后端 API                                │
-│  http://localhost:5001 /api/*                           │
+│                   Flask 后端 API                         │
+│             http://localhost:5001 /api/*                │
 │  ┌──────────┬───────────┬───────────┬─────────────┐     │
-│  │ 认证模块  │ PDF 解析   │ 业务与成本  │ AI 审计与    │    │
-│  │          │           │           │ 财务复核      │    │
-│  └──────────┴───────────┴───────────┴─────────────┘    │
+│  │ 认证模块  │ PDF 解析   │ 业务与成本  │  AI 审计与   │      │
+│  │          │           │           │ 财务复核     │     │
+│  └──────────┴───────────┴───────────┴─────────────┘     │
 └─────────────────────┬───────────────────────────────────┘
                       │ SQL
 ┌─────────────────────▼───────────────────────────────────┐
-│         MySQL 8.x  (生产环境)                            │
-│         SQLite      (开发环境，自动创建)                  │
+│         MySQL 8.x   (生产环境)                           │
+│         SQLite      (开发环境，自动创建)                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -599,9 +599,9 @@ export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=ut
 export ZHIPU_API_KEY='your-zhipu-api-key'
 export JWT_SECRET='your-long-random-secret-here'
 export UPLOAD_DIR=''
-export DASHSCOPE_API_KEY=''
-export FX_API_ID=''
-export FX_API_KEY=''
+export DASHSCOPE_API_KEY='your-dashscope-api-key'
+export FX_API_ID='your-fx-api-id'
+export FX_API_KEY='your-fx-api-key'
 
 # MySQL：初始化数据库
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -1006,9 +1006,9 @@ export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=ut
 export ZHIPU_API_KEY='your-zhipu-api-key'
 export JWT_SECRET='your-long-random-secret-here'
 export UPLOAD_DIR=''
-export DASHSCOPE_API_KEY=''
-export FX_API_ID=''
-export FX_API_KEY=''
+export DASHSCOPE_API_KEY='your-dashscope-api-key'
+export FX_API_ID='your-fx-api-id'
+export FX_API_KEY='your-fx-api-key'
 
 # MySQL: inicializar banco de dados
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
