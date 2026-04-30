@@ -3,9 +3,12 @@ import { Search } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
+import { useAuth } from '../shared/auth/AuthContext';
 
-export default function ReportView({ authToken }) {
+export default function ReportView() {
+  const { auth } = useAuth();
   const t = useT();
+  const authToken = auth?.access_token;
   const PAGE_SIZE = 10;
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);

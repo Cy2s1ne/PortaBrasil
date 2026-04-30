@@ -3,6 +3,7 @@ import { KeyRound, Pencil, Plus, Search, ShieldCheck, ToggleLeft, ToggleRight, X
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
+import { useAuth } from '../shared/auth/AuthContext';
 
 const PAGE_SIZE = 10;
 const EMPTY_FORM = {
@@ -15,8 +16,10 @@ const EMPTY_FORM = {
   role_codes: [],
 };
 
-export default function AdminManagementView({ authToken }) {
+export default function AdminManagementView() {
+  const { auth } = useAuth();
   const t = useT();
+  const authToken = auth?.access_token;
 
   const [roles, setRoles] = useState([]);
   const [rows, setRows] = useState([]);

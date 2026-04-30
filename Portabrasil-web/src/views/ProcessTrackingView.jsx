@@ -3,9 +3,12 @@ import { ArrowRight, CheckCircle2, ChevronRight, Circle, Download, Edit2, Search
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
+import { useAuth } from '../shared/auth/AuthContext';
 
-export default function ProcessTrackingView({ authToken }) {
+export default function ProcessTrackingView() {
+  const { auth } = useAuth();
   const t = useT();
+  const authToken = auth?.access_token;
   const PAGE_SIZE = 10;
   const [records, setRecords] = useState([]);
   const [total, setTotal] = useState(0);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Anchor, Globe2 } from "lucide-react";
 import { AnimatedCharacters } from "./animated-characters";
 import { InteractiveHoverButton } from "./interactive-hover-button";
+import { useAuth } from "./shared/auth/AuthContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
 const LANGS = ["zh", "en", "pt"];
@@ -97,7 +98,8 @@ const LOGIN_I18N = {
   },
 };
 
-export default function LoginPage({ onLogin, lang = "zh", onLangChange }) {
+export default function LoginPage({ lang = "zh", onLangChange }) {
+  const { login } = useAuth();
   const resolvedLang = LANGS.includes(lang) ? lang : "zh";
   const t = LOGIN_I18N[resolvedLang];
 
@@ -157,7 +159,7 @@ export default function LoginPage({ onLogin, lang = "zh", onLangChange }) {
         throw new Error(data.error || t.loginFailed);
       }
 
-      onLogin?.({
+      login({
         access_token: data.access_token,
         user: data.user,
         remember: rememberMe,

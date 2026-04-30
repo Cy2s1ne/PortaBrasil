@@ -4,9 +4,12 @@ import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatCurrencyBRL } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
+import { useAuth } from '../shared/auth/AuthContext';
 
-export default function HomeView({ authToken }) {
+export default function HomeView() {
+  const { auth } = useAuth();
   const t = useT();
+  const authToken = auth?.access_token;
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState('');
 

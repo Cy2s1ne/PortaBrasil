@@ -4,9 +4,12 @@ import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatCurrencyBRL } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
+import { useAuth } from '../shared/auth/AuthContext';
 
-export default function CostAnalysisView({ authToken }) {
+export default function CostAnalysisView() {
+  const { auth } = useAuth();
   const t = useT();
+  const authToken = auth?.access_token;
   const [customsFee, setCustomsFee] = useState('');
   const [refundFee, setRefundFee] = useState('');
   const [usdAmount, setUsdAmount] = useState('');

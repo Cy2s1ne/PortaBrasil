@@ -4,14 +4,18 @@ import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatFileSize } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
+import { useAuth } from '../shared/auth/AuthContext';
 
-export default function UploadView({ authToken }) {
+export default function UploadView() {
+  const { auth } = useAuth();
   const t = useT();
   const fileInputRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+
+  const authToken = auth?.access_token;
 
   const loadFiles = async () => {
     if (!authToken) return;
