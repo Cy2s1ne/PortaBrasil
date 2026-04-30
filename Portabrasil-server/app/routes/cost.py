@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urlencode
 from urllib.request import urlopen
 
 from flask import Blueprint, current_app, g, request
@@ -12,7 +13,10 @@ from app.core.responses import api_response
 
 bp = Blueprint("cost_api", __name__)
 
-RATE_SOURCE_URL = "https://api.nxvav.cn/api/exchange-rate/"
+# apihz.cn exchange rate API credentials
+FX_API_ID = os.getenv("FX_API_ID", "")
+FX_API_KEY = os.getenv("FX_API_KEY", "")
+RATE_SOURCE_URL = "https://cn.apihz.cn/api/jinrong/huilv.php"
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -91,32 +95,33 @@ def _calculate_cost(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _parse_live_usd_brl_rate() -> tuple[float, str | None]:
-    with urlopen(RATE_SOURCE_URL, timeout=8) as response:
+def _fetch_apihz_rate(from_currency: str, to_currency: str) -> tuple[float, str | None]:
+    params = urlencode({
+        "id": FX_API_ID,
+        "key": FX_API_KEY,
+        "from": from_currency,
+        "to": to_currency,
+        "money": "1",
+    })
+    url = f"{RATE_SOURCE_URL}?{params}"
+    with urlopen(url, timeout=8) as response:
         payload = json.loads(response.read().decode("utf-8"))
 
-    rates = payload.get("data", {}).get("rates", [])
-    if not isinstance(rates, list):
-        raise ValueError("汇率接口格式错误")
+    code = _to_float(payload.get("code"), -1)
+    if code != 200:
+        raise ValueError(f"apihz API error: code={code}, msg={payload.get('msg', 'unknown')}")
 
-    usd_rate = None
-    brl_rate = None
-    for item in rates:
-        if not isinstance(item, dict):
-            continue
-        currency = str(item.get("currency") or "").upper()
-        rate = _to_float(item.get("rate"), 0.0)
-        if currency == "USD":
-            usd_rate = rate
-        elif currency == "BRL":
-            brl_rate = rate
+    rate = _to_float(payload.get("rate"), 0.0)
+    if rate <= 0:
+        raise ValueError(f"apihz returned invalid rate: {rate}")
 
-    if not usd_rate or not brl_rate:
-        raise ValueError("未找到 USD/BRL 汇率")
+    uptime = payload.get("uptime")
+    return rate, uptime if isinstance(uptime, str) else None
 
-    calc_rate = round(brl_rate / usd_rate, 6)
-    updated_at = payload.get("data", {}).get("updated")
-    return calc_rate, updated_at if isinstance(updated_at, str) else None
+
+def _parse_live_usd_brl_rate() -> tuple[float, str | None]:
+    rate, updated_at = _fetch_apihz_rate("USD", "BRL")
+    return rate, updated_at
 
 
 def _upsert_rate_cache(db, conn, base: str, quote: str, rate: float, source: str, updated_at: str) -> None:
@@ -242,6 +247,15 @@ def get_cost_overview():
     )
 
 
+def _is_rate_stale(updated_at: str | None) -> bool:
+    if not updated_at:
+        return True
+    try:
+        return (datetime.now() - datetime.strptime(updated_at, "%Y-%m-%d %H:%M:%S")).total_seconds() > 86400
+    except Exception:
+        return True
+
+
 @bp.get("/api/cost/exchange-rate")
 @jwt_required()
 def get_exchange_rate():
@@ -257,20 +271,23 @@ def get_exchange_rate():
     with db.connection() as conn:
         try:
             live_rate, updated_at = _parse_live_usd_brl_rate()
-            _upsert_rate_cache(db, conn, base, quote, live_rate, "nxvav", updated_at or now_str)
+            _upsert_rate_cache(db, conn, base, quote, live_rate, "apihz", updated_at or now_str)
+            stale = _is_rate_stale(updated_at)
             return api_response(
                 {
                     "base": base,
                     "quote": quote,
                     "rate": live_rate,
-                    "source": "nxvav",
+                    "source": "apihz",
                     "updated_at": updated_at or now_str,
                     "live": True,
+                    "stale": stale,
                 }
             )
         except (URLError, ValueError, TimeoutError, OSError) as error:
             cached = _get_cached_rate(db, conn, base, quote)
             if cached:
+                stale = _is_rate_stale(cached.get("updated_at"))
                 return api_response(
                     {
                         "base": base,
@@ -279,7 +296,7 @@ def get_exchange_rate():
                         "source": cached.get("source") or "cache",
                         "updated_at": cached.get("updated_at"),
                         "live": False,
-                        "warning": f"实时汇率获取失败，已返回缓存：{error}",
+                        "stale": stale,
                     }
                 )
 
@@ -291,7 +308,7 @@ def get_exchange_rate():
             "source": "default",
             "updated_at": now_str,
             "live": False,
-            "warning": "实时汇率和缓存均不可用，返回默认汇率",
+            "stale": True,
         }
     )
 
