@@ -122,6 +122,50 @@ CREATE INDEX IF NOT EXISTS idx_fee_item_business_id ON customs_business_fee_item
 CREATE INDEX IF NOT EXISTS idx_fee_item_fee_code ON customs_business_fee_item(fee_code);
 CREATE INDEX IF NOT EXISTS idx_fee_item_fee_date ON customs_business_fee_item(fee_date);
 
+CREATE TABLE IF NOT EXISTS statement_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    statement_no TEXT NOT NULL,
+    issue_date TEXT,
+    due_date TEXT,
+    total_amount TEXT,
+    amount_direction TEXT,
+    customer_name TEXT,
+    customer_address TEXT,
+    customer_city TEXT,
+    customer_state TEXT,
+    customer_zip_code TEXT,
+    customer_tax_no TEXT,
+    issuer_name TEXT,
+    source_file_id INTEGER,
+    source_page_no INTEGER,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(source_file_id) REFERENCES pdf_file(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_statement_summary_no ON statement_summary(statement_no);
+CREATE INDEX IF NOT EXISTS idx_statement_summary_source ON statement_summary(source_file_id);
+
+CREATE TABLE IF NOT EXISTS statement_summary_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    summary_id INTEGER NOT NULL,
+    n_ref TEXT,
+    s_ref TEXT,
+    nf_no TEXT,
+    amount_direction TEXT,
+    balance_amount TEXT,
+    business_id INTEGER,
+    line_no INTEGER,
+    created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(summary_id) REFERENCES statement_summary(id) ON DELETE CASCADE,
+    FOREIGN KEY(business_id) REFERENCES customs_business(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_summary_item_summary ON statement_summary_item(summary_id);
+CREATE INDEX IF NOT EXISTS idx_summary_item_s_ref ON statement_summary_item(s_ref);
+CREATE INDEX IF NOT EXISTS idx_summary_item_n_ref ON statement_summary_item(n_ref);
+CREATE INDEX IF NOT EXISTS idx_summary_item_business ON statement_summary_item(business_id);
+
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -370,6 +414,7 @@ class Database:
             self.initialize_auth_seed(conn)
             self.initialize_process_seed(conn)
             self.initialize_cost_seed(conn)
+            self.initialize_summary_seed(conn)
 
     def initialize_auth_seed(self, conn) -> None:
         role_rows = [
@@ -493,6 +538,26 @@ class Database:
         conn.execute(
             "INSERT OR REPLACE INTO fx_rate_cache (base_currency, quote_currency, rate, source, updated_at) VALUES (?, ?, ?, ?, ?)",
             ("USD", "BRL", "5.1200", "seed", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        )
+
+    def initialize_summary_seed(self, conn) -> None:
+        rows = conn.execute("SELECT COUNT(*) FROM statement_summary").fetchone()
+        if rows and int(rows[0]) > 0:
+            return
+
+        summary_id = conn.execute(
+            "INSERT INTO statement_summary (statement_no, issue_date, due_date, total_amount, amount_direction, customer_name, issuer_name) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("050/25", "2025-08-01", "2025-08-31", "58400.00", "S/Favor", "进口商客户A", "PortaBrasil Logistica"),
+        ).lastrowid
+
+        item_rows = [
+            (summary_id, None, "S/REF-001", "NF-12345", "S/Favor", "12500.00", None, 1),
+            (summary_id, None, "S/REF-002", "NF-12346", "S/Favor", "23000.00", None, 2),
+            (summary_id, None, "S/REF-003", "NF-12347", "S/Favor", "22900.00", None, 3),
+        ]
+        conn.executemany(
+            "INSERT INTO statement_summary_item (summary_id, n_ref, s_ref, nf_no, amount_direction, balance_amount, business_id, line_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            item_rows,
         )
 
     @contextmanager
