@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_SQLITE_PATH = BASE_DIR / "instance" / "portabrasil.db"
 
 

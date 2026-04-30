@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from database import Database
+from sql.database import Database
 from parser_rules import parse_demonstrativo_text
 from pdf_parser import PDFParser
 

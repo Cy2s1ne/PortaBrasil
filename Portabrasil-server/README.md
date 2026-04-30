@@ -1,6 +1,6 @@
 # PortaBrasil Flask 后端
 
-这个后端负责 PDF 上传、智谱 PDF 解析、解析文本规则化、写入 `portabrasil.sql` 中的业务表，以及基础查询接口。
+这个后端负责 PDF 上传、智谱 PDF 解析、解析文本规则化、写入 `sql/schema.sql` 中的业务表，以及基础查询接口。
 
 ## 0. 工程化结构
 
@@ -25,8 +25,10 @@ Portabrasil-server/
 │       ├── process.py       # 清关流程跟踪
 │       ├── reports.py       # 报表列表
 │       └── cost.py          # 成本分析（汇率/计算/记录）
-├── database.py              # 数据库连接与初始化（MySQL/SQLite）
-└── services.py              # PDF 解析与业务入库服务逻辑
+├── sql/
+│   ├── schema.sql           # MySQL 数据库初始化脚本
+│   └── database.py          # 数据库连接与初始化（MySQL/SQLite）
+├── services.py              # PDF 解析与业务入库服务逻辑
 ```
 
 ## 1. 安装依赖
@@ -40,11 +42,11 @@ uv sync
 
 ## 2. 初始化数据库
 
-MySQL 版本使用根目录的 SQL：
+MySQL 版本使用 `sql/schema.sql`：
 
 ```bash
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p portabrasil < ../portabrasil.sql
+mysql -u root -p portabrasil < sql/schema.sql
 ```
 
 > 服务只通过 `os.getenv` 读取系统环境变量，不会自动读取 `.env` 文件。开发阶段推荐直接在终端导出变量：
@@ -90,7 +92,7 @@ curl -X POST http://127.0.0.1:5001/api/auth/login \
   -d '{"username":"admin","password":"admin123456"}'
 ```
 
-默认管理员账号（来自 `portabrasil.sql`）：
+默认管理员账号（来自 `sql/schema.sql`）：
 
 - 用户名：`admin`
 - 密码：`admin123456`

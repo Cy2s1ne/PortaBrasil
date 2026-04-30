@@ -15,7 +15,7 @@ from app.routes.health import bp as health_bp
 from app.routes.process import bp as process_bp
 from app.routes.reports import bp as reports_bp
 from app.routes.tasks import bp as tasks_bp
-from database import get_database
+from sql.database import get_database
 
 try:
     from flask_cors import CORS
