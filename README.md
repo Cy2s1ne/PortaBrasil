@@ -190,6 +190,10 @@ uv sync
 export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=utf8mb4'
 export ZHIPU_API_KEY='your-zhipu-api-key'
 export JWT_SECRET='your-long-random-secret-here'
+export UPLOAD_DIR=''
+export DASHSCOPE_API_KEY=''
+export FX_API_ID=''
+export FX_API_KEY=''
 
 # MySQL: initialize database
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -594,6 +598,10 @@ uv sync
 export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=utf8mb4'
 export ZHIPU_API_KEY='your-zhipu-api-key'
 export JWT_SECRET='your-long-random-secret-here'
+export UPLOAD_DIR=''
+export DASHSCOPE_API_KEY=''
+export FX_API_ID=''
+export FX_API_KEY=''
 
 # MySQL：初始化数据库
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -997,6 +1005,10 @@ uv sync
 export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=utf8mb4'
 export ZHIPU_API_KEY='your-zhipu-api-key'
 export JWT_SECRET='your-long-random-secret-here'
+export UPLOAD_DIR=''
+export DASHSCOPE_API_KEY=''
+export FX_API_ID=''
+export FX_API_KEY=''
 
 # MySQL: inicializar banco de dados
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS portabrasil DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
