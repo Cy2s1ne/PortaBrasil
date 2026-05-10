@@ -49,6 +49,16 @@ def _validate_manage_permission(operator: dict[str, Any], target_user: dict[str,
         return True, None
     if "SUPER_ADMIN" in set(target_user.get("roles") or []):
         return False, api_response({"error": "不能操作超级管理员账号"}, 403)
+    if "ADMIN" in set(target_user.get("roles") or []):
+        return False, api_response({"error": "普通管理员不能操作管理员账号"}, 403)
+    return True, None
+
+
+def _validate_role_assignment(operator: dict[str, Any], role_codes: list[str]) -> tuple[bool, Any]:
+    if _is_super_admin(operator):
+        return True, None
+    if set(role_codes) & MANAGEABLE_ROLES:
+        return False, api_response({"error": "普通管理员不能分配管理员角色"}, 403)
     return True, None
 
 
@@ -73,10 +83,13 @@ def list_roles():
         else:
             rows = db.fetchall(
                 conn,
-                "SELECT id, role_name, role_code, description FROM roles WHERE role_code != "
+                "SELECT id, role_name, role_code, description FROM roles WHERE role_code NOT IN ("
                 + db.placeholder
+                + ", "
+                + db.placeholder
+                + ")"
                 + " ORDER BY id ASC",
-                ["SUPER_ADMIN"],
+                ["SUPER_ADMIN", "ADMIN"],
             )
     items = [{**row, "id": int(row["id"])} for row in rows]
     return api_response({"items": items, "total": len(items)})
@@ -142,11 +155,14 @@ def list_users():
     if not is_super:
         where_clauses.append(
             "NOT EXISTS (SELECT 1 FROM user_role ur3 JOIN roles r3 ON r3.id = ur3.role_id "
-            "WHERE ur3.user_id = u.id AND r3.role_code = "
+            "WHERE ur3.user_id = u.id AND r3.role_code IN ("
+            + db.placeholder
+            + ", "
             + db.placeholder
             + ")"
+            + ")"
         )
-        params.append("SUPER_ADMIN")
+        params.extend(["SUPER_ADMIN", "ADMIN"])
 
     where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
@@ -177,7 +193,6 @@ def list_users():
 def create_user():
     payload = request.get_json(silent=True) or {}
     operator = g.current_user
-    is_super = _is_super_admin(operator)
 
     username = str(payload.get("username") or "").strip()
     raw_password = str(payload.get("password") or "")
@@ -199,8 +214,9 @@ def create_user():
         return api_response({"error": "password 长度不能少于 6 位"}, 400)
     if not role_codes:
         return api_response({"error": "至少分配一个角色 role_codes"}, 400)
-    if not is_super and "SUPER_ADMIN" in role_codes:
-        return api_response({"error": "当前账号不能分配超级管理员角色"}, 403)
+    allowed, error_response = _validate_role_assignment(operator, role_codes)
+    if not allowed:
+        return error_response
 
     db = current_app.config["DB"]
     with db.connection() as conn:
@@ -246,7 +262,6 @@ def create_user():
 def update_user(user_id: int):
     payload = request.get_json(silent=True) or {}
     operator = g.current_user
-    is_super = _is_super_admin(operator)
     db = current_app.config["DB"]
 
     with db.connection() as conn:
@@ -304,8 +319,9 @@ def update_user(user_id: int):
             role_codes = _parse_role_codes(payload)
             if not role_codes:
                 return api_response({"error": "至少分配一个角色 role_codes"}, 400)
-            if not is_super and "SUPER_ADMIN" in role_codes:
-                return api_response({"error": "当前账号不能分配超级管理员角色"}, 403)
+            allowed, error_response = _validate_role_assignment(operator, role_codes)
+            if not allowed:
+                return error_response
             if int(operator["id"]) == user_id and set(role_codes).isdisjoint(MANAGEABLE_ROLES):
                 return api_response({"error": "当前登录账号至少保留一个管理角色"}, 400)
 

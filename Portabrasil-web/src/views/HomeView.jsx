@@ -7,7 +7,7 @@ import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
 import { useAuth } from '../shared/auth/AuthContext';
 
 export default function HomeView() {
-  const { auth } = useAuth();
+  const { auth, currentUserName } = useAuth();
   const t = useT();
   const authToken = auth?.access_token;
   const [overview, setOverview] = useState(null);
@@ -42,6 +42,7 @@ export default function HomeView() {
   const kanban = overview?.kanban || { items: [], total: 0, normal: 0, anomaly: 0 };
   const stepCountMap = new Map((kanban.items || []).map((item) => [Number(item.step_no), Number(item.count || 0)]));
   const activities = (overview?.activities || []).slice(0, 10);
+  const welcomeMessage = typeof t.welcome === 'function' ? t.welcome(currentUserName) : t.welcome;
 
   const cols = [
     { id: 1, titleKey: 'step1', color: { topBar: 'bg-violet-500', card: 'bg-gradient-to-b from-violet-50 to-white border-violet-300', label: 'text-violet-600', count: 'text-violet-600', unit: 'text-violet-500' } },
@@ -87,7 +88,7 @@ export default function HomeView() {
     <div className="space-y-6">
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">{t.welcome}</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">{welcomeMessage}</h2>
           <p className="text-gray-500">{t.welcomeSub(stats.in_progress || 0, stats.anomaly || 0)}</p>
         </div>
         <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm">

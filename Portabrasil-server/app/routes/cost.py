@@ -191,7 +191,7 @@ def _serialize_cost_record(row: dict[str, Any], items: list[dict[str, Any]]) -> 
 
 
 @bp.get("/api/cost/overview")
-@jwt_required()
+@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
 def get_cost_overview():
     db = current_app.config["DB"]
     with db.connection() as conn:
@@ -257,7 +257,7 @@ def _is_rate_stale(updated_at: str | None) -> bool:
 
 
 @bp.get("/api/cost/exchange-rate")
-@jwt_required()
+@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
 def get_exchange_rate():
     base = (request.args.get("base") or "USD").strip().upper()
     quote = (request.args.get("quote") or "BRL").strip().upper()
@@ -314,7 +314,7 @@ def get_exchange_rate():
 
 
 @bp.post("/api/cost/calculate")
-@jwt_required()
+@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
 def calculate_cost():
     payload = request.get_json(silent=True) or {}
     if not isinstance(payload, dict):
@@ -410,7 +410,7 @@ def create_cost_record():
 
 
 @bp.get("/api/cost/records")
-@jwt_required()
+@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
 def list_cost_records():
     db = current_app.config["DB"]
     try:
@@ -476,7 +476,7 @@ def list_cost_records():
 
 
 @bp.get("/api/cost/records/<int:record_id>")
-@jwt_required()
+@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
 def get_cost_record(record_id: int):
     db = current_app.config["DB"]
     with db.connection() as conn:

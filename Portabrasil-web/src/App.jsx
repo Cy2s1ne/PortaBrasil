@@ -18,7 +18,14 @@ function AdminRoute({ children }) {
   return children;
 }
 
+function RoleRoute({ canAccess, children }) {
+  if (!canAccess) return <Navigate to="/" replace />;
+  return children;
+}
+
 function AppRoutes({ lang, onLangChange }) {
+  const { canAccessUpload, canAccessCost } = useAuth();
+
   return (
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
@@ -31,9 +38,9 @@ function AppRoutes({ lang, onLangChange }) {
         }
       >
         <Route index element={<HomeView />} />
-        <Route path="upload" element={<UploadView />} />
+        <Route path="upload" element={<RoleRoute canAccess={canAccessUpload}><UploadView /></RoleRoute>} />
         <Route path="process" element={<ProcessTrackingView />} />
-        <Route path="cost" element={<CostAnalysisView />} />
+        <Route path="cost" element={<RoleRoute canAccess={canAccessCost}><CostAnalysisView /></RoleRoute>} />
         <Route path="report" element={<ReportView />} />
         <Route path="admin" element={<AdminRoute><AdminManagementView /></AdminRoute>} />
       </Route>

@@ -28,7 +28,7 @@ const LANG_LABELS = { zh: '中文', en: 'EN', pt: 'PT' };
 const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=e2e8f0';
 
 export default function AppLayout({ lang, onLangChange }) {
-  const { auth, currentUserName, canManageAdmins, logout } = useAuth();
+  const { auth, currentUserName, canManageAdmins, canAccessUpload, canAccessCost, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
@@ -42,9 +42,9 @@ export default function AppLayout({ lang, onLangChange }) {
 
   const menuItems = [
     { key: 'home', label: t.nav_home, icon: Home, path: '/' },
-    { key: 'upload', label: t.nav_upload, icon: UploadCloud, path: '/upload' },
+    ...(canAccessUpload ? [{ key: 'upload', label: t.nav_upload, icon: UploadCloud, path: '/upload' }] : []),
     { key: 'process', label: t.nav_process, icon: MapIcon, path: '/process' },
-    { key: 'cost', label: t.nav_cost, icon: PieChart, path: '/cost' },
+    ...(canAccessCost ? [{ key: 'cost', label: t.nav_cost, icon: PieChart, path: '/cost' }] : []),
     { key: 'report', label: t.nav_report, icon: BarChart2, path: '/report' },
     ...(canManageAdmins ? [{ key: 'admin', label: t.nav_admin, icon: ShieldCheck, path: '/admin' }] : []),
   ];

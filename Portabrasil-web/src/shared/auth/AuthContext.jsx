@@ -19,6 +19,12 @@ export function AuthProvider({ children }) {
   const currentUserName = auth?.user?.real_name || auth?.user?.username || '';
   const currentRoles = auth?.user?.roles || [];
   const canManageAdmins = currentRoles.includes('SUPER_ADMIN') || currentRoles.includes('ADMIN');
+  const hasAnyRole = useCallback(
+    (allowedRoles) => currentRoles.some((role) => allowedRoles.includes(role)),
+    [currentRoles],
+  );
+  const canAccessUpload = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMS']);
+  const canAccessCost = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FINANCE']);
 
   useEffect(() => {
     if (!auth?.access_token) {
@@ -89,6 +95,9 @@ export function AuthProvider({ children }) {
     currentUserName,
     currentRoles,
     canManageAdmins,
+    canAccessUpload,
+    canAccessCost,
+    hasAnyRole,
     login,
     logout,
   };

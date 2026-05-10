@@ -17,10 +17,11 @@ const EMPTY_FORM = {
 };
 
 export default function AdminManagementView() {
-  const { auth } = useAuth();
+  const { auth, currentRoles } = useAuth();
   const t = useT();
   const authToken = auth?.access_token;
   const currentUserId = Number(auth?.user?.id || 0);
+  const isSuperAdmin = currentRoles.includes('SUPER_ADMIN');
 
   const [roles, setRoles] = useState([]);
   const [rows, setRows] = useState([]);
@@ -99,6 +100,12 @@ export default function AdminManagementView() {
     loadUsers();
   }, [loadUsers]);
 
+  const canManageUser = (row) => {
+    if (isSuperAdmin) return true;
+    const rowRoles = new Set(row.roles || []);
+    return !rowRoles.has('SUPER_ADMIN') && !rowRoles.has('ADMIN');
+  };
+
   const openCreateModal = () => {
     setModalMode('create');
     setEditingUser(null);
@@ -110,6 +117,10 @@ export default function AdminManagementView() {
   };
 
   const openEditModal = (row) => {
+    if (!canManageUser(row)) {
+      setError(t.admin_manage_admin_blocked);
+      return;
+    }
     setModalMode('edit');
     setEditingUser(row);
     setForm({
@@ -195,6 +206,10 @@ export default function AdminManagementView() {
 
   const toggleUserStatus = async (row) => {
     if (!authToken || actionBusyId) return;
+    if (!canManageUser(row)) {
+      setError(t.admin_manage_admin_blocked);
+      return;
+    }
     const nextStatus = Number(row.status || 0) === 1 ? 0 : 1;
     setActionBusyId(row.id);
     setError('');
@@ -216,6 +231,10 @@ export default function AdminManagementView() {
   const openPasswordModal = (row) => {
     if (Number(row.id) === currentUserId) {
       setError(t.admin_reset_self_blocked);
+      return;
+    }
+    if (!canManageUser(row)) {
+      setError(t.admin_manage_admin_blocked);
       return;
     }
     setPasswordTarget(row);
@@ -335,7 +354,9 @@ export default function AdminManagementView() {
                 <tr><td className="px-6 py-6 text-sm text-gray-500" colSpan={8}>{t.fetching_rate}</td></tr>
               ) : rows.length === 0 ? (
                 <tr><td className="px-6 py-6 text-sm text-gray-400" colSpan={8}>{t.admin_empty}</td></tr>
-              ) : rows.map((row) => (
+              ) : rows.map((row) => {
+                const canManageRow = canManageUser(row);
+                return (
                 <tr key={row.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4 font-medium text-gray-900">{row.username}</td>
                   <td className="px-6 py-4">{row.real_name || '-'}</td>
@@ -363,14 +384,15 @@ export default function AdminManagementView() {
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => openEditModal(row)}
-                        className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium"
+                        disabled={!canManageRow}
+                        className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Pencil className="w-3.5 h-3.5 mr-1" />
                         {t.admin_edit}
                       </button>
                       <button
                         onClick={() => toggleUserStatus(row)}
-                        disabled={actionBusyId === row.id}
+                        disabled={actionBusyId === row.id || !canManageRow}
                         className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium disabled:opacity-40"
                       >
                         {Number(row.status || 0) === 1 ? (
@@ -382,7 +404,7 @@ export default function AdminManagementView() {
                       </button>
                       <button
                         onClick={() => openPasswordModal(row)}
-                        disabled={Number(row.id) === currentUserId}
+                        disabled={Number(row.id) === currentUserId || !canManageRow}
                         className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <KeyRound className="w-3.5 h-3.5 mr-1" />
@@ -391,7 +413,8 @@ export default function AdminManagementView() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
