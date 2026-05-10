@@ -17,23 +17,12 @@ const LOGIN_I18N = {
     passwordLabel: "密码",
     rememberLogin: "记住登录",
     forgotPassword: "忘记密码？",
+    forgotPasswordHint: "请联系管理员重置密码",
     loginButton: "登录",
     loginLoading: "登录中...",
     loginRequired: "请输入账号和密码",
     loginFailed: "登录失败，请检查账号和密码",
     loginRetry: "登录失败，请稍后再试",
-    resetTitle: "重置密码",
-    resetRequired: "请填写用户名、邮箱和新密码",
-    resetLength: "新密码至少 6 位",
-    resetMismatch: "两次输入的新密码不一致",
-    resetFailed: "重置密码失败",
-    resetHint: "密码已重置，请使用新密码登录",
-    resetUsernamePh: "用户名",
-    resetEmailPh: "注册邮箱",
-    resetNewPasswordPh: "新密码",
-    resetConfirmPh: "确认新密码",
-    resetSubmitting: "提交中...",
-    resetButton: "重置密码",
     privacy: "隐私政策",
     terms: "服务条款",
     langButton: "语言",
@@ -46,23 +35,12 @@ const LOGIN_I18N = {
     passwordLabel: "Password",
     rememberLogin: "Remember me",
     forgotPassword: "Forgot password?",
+    forgotPasswordHint: "Please contact an administrator to reset your password",
     loginButton: "Sign in",
     loginLoading: "Signing in...",
     loginRequired: "Please enter account and password",
     loginFailed: "Login failed. Please check your account and password",
     loginRetry: "Login failed. Please try again later",
-    resetTitle: "Reset Password",
-    resetRequired: "Please fill username, e-mail and new password",
-    resetLength: "New password must be at least 6 characters",
-    resetMismatch: "The two passwords do not match",
-    resetFailed: "Password reset failed",
-    resetHint: "Password reset complete. Please sign in with the new password",
-    resetUsernamePh: "Username",
-    resetEmailPh: "Registered e-mail",
-    resetNewPasswordPh: "New password",
-    resetConfirmPh: "Confirm new password",
-    resetSubmitting: "Submitting...",
-    resetButton: "Reset password",
     privacy: "Privacy Policy",
     terms: "Terms of Service",
     langButton: "Language",
@@ -75,23 +53,12 @@ const LOGIN_I18N = {
     passwordLabel: "Senha",
     rememberLogin: "Lembrar login",
     forgotPassword: "Esqueceu a senha?",
+    forgotPasswordHint: "Entre em contato com um administrador para redefinir a senha",
     loginButton: "Entrar",
     loginLoading: "Entrando...",
     loginRequired: "Informe conta e senha",
     loginFailed: "Falha no login. Verifique conta e senha",
     loginRetry: "Falha no login. Tente novamente mais tarde",
-    resetTitle: "Redefinir senha",
-    resetRequired: "Preencha usuário, e-mail e nova senha",
-    resetLength: "A nova senha deve ter pelo menos 6 caracteres",
-    resetMismatch: "As senhas não coincidem",
-    resetFailed: "Falha ao redefinir senha",
-    resetHint: "Senha redefinida. Faça login com a nova senha",
-    resetUsernamePh: "Usuário",
-    resetEmailPh: "E-mail cadastrado",
-    resetNewPasswordPh: "Nova senha",
-    resetConfirmPh: "Confirmar nova senha",
-    resetSubmitting: "Enviando...",
-    resetButton: "Redefinir senha",
     privacy: "Política de Privacidade",
     terms: "Termos de Serviço",
     langButton: "Idioma",
@@ -111,15 +78,6 @@ export default function LoginPage({ lang = "zh", onLangChange }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
-
-  const [showForgotPanel, setShowForgotPanel] = useState(false);
-  const [resetUsername, setResetUsername] = useState("");
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetPassword, setResetPassword] = useState("");
-  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetError, setResetError] = useState("");
-  const [resetInfo, setResetInfo] = useState("");
 
   const passwordLength = password.length;
 
@@ -171,55 +129,9 @@ export default function LoginPage({ lang = "zh", onLangChange }) {
     }
   };
 
-  const onForgotPassword = async (e) => {
-    e.preventDefault();
-    setResetError("");
-    setResetInfo("");
-
-    if (!resetUsername.trim() || !resetEmail.trim() || !resetPassword) {
-      setResetError(t.resetRequired);
-      return;
-    }
-    if (resetPassword.length < 6) {
-      setResetError(t.resetLength);
-      return;
-    }
-    if (resetPassword !== resetPasswordConfirm) {
-      setResetError(t.resetMismatch);
-      return;
-    }
-
-    setResetLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: resetUsername.trim(),
-          email: resetEmail.trim(),
-          new_password: resetPassword,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || t.resetFailed);
-      }
-
-      setResetInfo(data.message || t.resetHint);
-      setInfoMessage(t.resetHint);
-      setAccount(resetUsername.trim());
-      setPassword("");
-      setResetPassword("");
-      setResetPasswordConfirm("");
-      setShowForgotPanel(false);
-    } catch (error) {
-      setResetError(error.message || t.resetFailed);
-    } finally {
-      setResetLoading(false);
-    }
+  const onForgotPassword = () => {
+    setInfoMessage("");
+    setErrorMessage(t.forgotPasswordHint);
   };
 
   return (
@@ -386,11 +298,7 @@ export default function LoginPage({ lang = "zh", onLangChange }) {
                 </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setResetError("");
-                    setResetInfo("");
-                    setShowForgotPanel((prev) => !prev);
-                  }}
+                  onClick={onForgotPassword}
                   className="text-sm text-blue-600 hover:underline font-medium"
                 >
                   {t.forgotPassword}
@@ -405,65 +313,6 @@ export default function LoginPage({ lang = "zh", onLangChange }) {
                 className="w-full"
               />
             </form>
-
-            {showForgotPanel ? (
-              <form onSubmit={onForgotPassword} className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                <div className="text-sm font-semibold text-slate-700">{t.resetTitle}</div>
-
-                {resetError ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    {resetError}
-                  </div>
-                ) : null}
-
-                {resetInfo ? (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                    {resetInfo}
-                  </div>
-                ) : null}
-
-                <input
-                  type="text"
-                  value={resetUsername}
-                  onChange={(e) => setResetUsername(e.target.value)}
-                  placeholder={t.resetUsernamePh}
-                  required
-                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                />
-                <input
-                  type="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder={t.resetEmailPh}
-                  required
-                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                />
-                <input
-                  type="password"
-                  value={resetPassword}
-                  onChange={(e) => setResetPassword(e.target.value)}
-                  placeholder={t.resetNewPasswordPh}
-                  required
-                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                />
-                <input
-                  type="password"
-                  value={resetPasswordConfirm}
-                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
-                  placeholder={t.resetConfirmPh}
-                  required
-                  className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                />
-
-                <button
-                  type="submit"
-                  disabled={resetLoading}
-                  className="w-full h-10 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                >
-                  {resetLoading ? t.resetSubmitting : t.resetButton}
-                </button>
-              </form>
-            ) : null}
           </div>
         </div>
       </div>

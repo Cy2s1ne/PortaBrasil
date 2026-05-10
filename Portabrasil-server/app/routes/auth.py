@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Blueprint, current_app, g, request
 
 from app.core.auth import (
@@ -115,44 +117,49 @@ def register():
 
 @bp.post("/api/auth/forgot-password")
 def forgot_password():
-    payload = request.get_json(silent=True) or {}
-    username = str(payload.get("username") or "").strip()
-    email = str(payload.get("email") or "").strip()
-    new_password = str(payload.get("new_password") or "")
-
-    if not username or not email or not new_password:
-        return api_response({"error": "username、email、new_password 必填"}, 400)
-    if len(new_password) < 6:
-        return api_response({"error": "新密码长度不能少于 6 位"}, 400)
-
-    db = current_app.config["DB"]
-    with db.connection() as conn:
-        user = db.fetchone(
-            conn,
-            "SELECT id, email FROM users WHERE username = " + db.placeholder,
-            [username],
-        )
-        if not user:
-            return api_response({"error": "用户不存在"}, 404)
-
-        stored_email = str(user.get("email") or "").strip().lower()
-        if stored_email != email.lower():
-            return api_response({"error": "用户名与邮箱不匹配"}, 400)
-
-        db.update_by_id(
-            conn,
-            "users",
-            int(user["id"]),
-            {"password": hash_password_sha256(new_password)},
-        )
-
-    return api_response({"message": "密码重置成功，请使用新密码登录"})
+    return api_response({"error": "请联系管理员重置密码"}, 403)
 
 
 @bp.get("/api/auth/me")
 @jwt_required()
 def get_current_user():
     return api_response({"user": g.current_user})
+
+
+@bp.put("/api/auth/me/password")
+@jwt_required()
+def update_current_user_password():
+    payload = request.get_json(silent=True) or {}
+    old_password = str(payload.get("old_password") or "")
+    new_password = str(payload.get("new_password") or "")
+
+    if not old_password or not new_password:
+        return api_response({"error": "old_password 和 new_password 必填"}, 400)
+    if len(new_password) < 6:
+        return api_response({"error": "new_password 长度不能少于 6 位"}, 400)
+
+    db = current_app.config["DB"]
+    user_id = int(g.current_user["id"])
+    with db.connection() as conn:
+        user = get_user_with_roles_by_id(db, conn, user_id)
+        if not user:
+            return api_response({"error": "用户不存在"}, 404)
+
+        verified, _needs_upgrade = verify_password(old_password, str(user.get("password") or ""))
+        if not verified:
+            return api_response({"error": "原密码错误"}, 400)
+
+        db.update_by_id(
+            conn,
+            "users",
+            user_id,
+            {
+                "password": hash_password_sha256(new_password),
+                "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            },
+        )
+
+    return api_response({"message": "密码修改成功，请重新登录"})
 
 
 @bp.post("/api/auth/users")

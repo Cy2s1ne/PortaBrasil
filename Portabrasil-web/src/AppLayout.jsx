@@ -1,10 +1,12 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart2,
   Bell,
   ChevronRight,
   Globe,
   Home,
+  KeyRound,
   Layers,
   LogOut,
   Map as MapIcon,
@@ -12,19 +14,31 @@ import {
   Search,
   ShieldCheck,
   UploadCloud,
+  X,
 } from 'lucide-react';
 import SidebarItem from './components/navigation/SidebarItem';
 import { useAuth } from './shared/auth/AuthContext';
+import { API_BASE_URL } from './shared/config/api';
 import { LanguageContext } from './shared/i18n/language-context';
 import { TRANSLATIONS } from './shared/i18n/translations';
+import { buildAuthHeaders, fetchJSON } from './shared/utils/http';
 
 const LANGS = ['zh', 'en', 'pt'];
 const LANG_LABELS = { zh: '中文', en: 'EN', pt: 'PT' };
+const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=e2e8f0';
 
 export default function AppLayout({ lang, onLangChange }) {
-  const { currentUserName, canManageAdmins, logout } = useAuth();
+  const { auth, currentUserName, canManageAdmins, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
+  const authToken = auth?.access_token;
+
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' });
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const menuItems = [
     { key: 'home', label: t.nav_home, icon: Home, path: '/' },
@@ -45,6 +59,48 @@ export default function AppLayout({ lang, onLangChange }) {
   };
 
   const activeLabel = routeLabels[location.pathname] || '';
+
+  const openPasswordModal = () => {
+    setPasswordForm({ old_password: '', new_password: '', confirm_password: '' });
+    setPasswordError('');
+    setPasswordModalOpen(true);
+    setProfileMenuOpen(false);
+  };
+
+  const submitPasswordChange = async () => {
+    if (!authToken || passwordBusy) return;
+    if (!passwordForm.old_password || !passwordForm.new_password) {
+      setPasswordError(t.profile_password_required);
+      return;
+    }
+    if (passwordForm.new_password.length < 6) {
+      setPasswordError(t.admin_password_min);
+      return;
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordError(t.admin_password_mismatch);
+      return;
+    }
+
+    setPasswordBusy(true);
+    setPasswordError('');
+    try {
+      await fetchJSON(`${API_BASE_URL}/api/auth/me/password`, {
+        method: 'PUT',
+        headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          old_password: passwordForm.old_password,
+          new_password: passwordForm.new_password,
+        }),
+      });
+      logout();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setPasswordError(err.message || 'failed');
+    } finally {
+      setPasswordBusy(false);
+    }
+  };
 
   return (
     <LanguageContext.Provider value={lang}>
@@ -115,20 +171,41 @@ export default function AppLayout({ lang, onLangChange }) {
               </button>
 
               <button
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  navigate('/login', { replace: true });
+                }}
                 className="flex items-center space-x-1 text-gray-400 hover:text-red-500 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors border border-gray-200"
               >
                 <LogOut className="w-4 h-4" />
               </button>
 
               <div className="h-8 w-px bg-gray-200"></div>
-              <div className="flex items-center cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
-                <img
-                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=e2e8f0"
-                  alt="User Avatar"
-                  className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 mr-2"
-                />
-                <span className="font-medium text-sm text-gray-700">{currentUserName}</span>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileMenuOpen((open) => !open)}
+                  className="flex items-center cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors"
+                >
+                  <img
+                    src={DEFAULT_AVATAR_URL}
+                    alt="User Avatar"
+                    className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 mr-2"
+                  />
+                  <span className="font-medium text-sm text-gray-700">{currentUserName}</span>
+                </button>
+                {profileMenuOpen ? (
+                  <div className="absolute right-0 top-11 w-48 rounded-xl border border-gray-100 bg-white py-2 shadow-xl z-30">
+                    <button
+                      type="button"
+                      onClick={openPasswordModal}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-600 hover:bg-gray-50"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                      {t.profile_change_password}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </header>
@@ -140,6 +217,56 @@ export default function AppLayout({ lang, onLangChange }) {
           </main>
         </div>
       </div>
+
+      {passwordModalOpen ? (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="w-[460px] max-w-[95vw] bg-white rounded-2xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-gray-800">{t.profile_change_password}</h3>
+              <button onClick={() => setPasswordModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                type="password"
+                value={passwordForm.old_password}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, old_password: e.target.value }))}
+                placeholder={t.profile_old_password}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <input
+                type="password"
+                value={passwordForm.new_password}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, new_password: e.target.value }))}
+                placeholder={t.profile_new_password}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <input
+                type="password"
+                value={passwordForm.confirm_password}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirm_password: e.target.value }))}
+                placeholder={t.profile_confirm_password}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+            <p className="mt-3 text-xs text-gray-400">{t.profile_password_logout_hint}</p>
+            {passwordError ? <p className="mt-4 text-xs text-amber-600">{passwordError}</p> : null}
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setPasswordModalOpen(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                {t.cancel}
+              </button>
+              <button
+                onClick={submitPasswordChange}
+                disabled={passwordBusy}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+              >
+                {passwordBusy ? t.fetching_rate : t.save_update}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </LanguageContext.Provider>
   );
 }

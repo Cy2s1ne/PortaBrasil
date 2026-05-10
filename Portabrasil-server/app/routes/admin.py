@@ -369,12 +369,10 @@ def update_user_status(user_id: int):
 @bp.put("/api/admin/users/<int:user_id>/password")
 @jwt_required("SUPER_ADMIN", "ADMIN")
 def reset_user_password(user_id: int):
-    payload = request.get_json(silent=True) or {}
-    new_password = str(payload.get("new_password") or "")
-    if len(new_password) < 6:
-        return api_response({"error": "new_password 长度不能少于 6 位"}, 400)
-
     operator = g.current_user
+    if int(operator["id"]) == user_id:
+        return api_response({"error": "不能重置当前登录账号的密码"}, 400)
+
     db = current_app.config["DB"]
     with db.connection() as conn:
         target_user = get_user_with_roles_by_id(db, conn, user_id)
@@ -390,7 +388,7 @@ def reset_user_password(user_id: int):
             "users",
             user_id,
             {
-                "password": hash_password_sha256(new_password),
+                "password": hash_password_sha256("123456"),
                 "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
         )

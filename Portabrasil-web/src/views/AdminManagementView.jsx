@@ -20,6 +20,7 @@ export default function AdminManagementView() {
   const { auth } = useAuth();
   const t = useT();
   const authToken = auth?.access_token;
+  const currentUserId = Number(auth?.user?.id || 0);
 
   const [roles, setRoles] = useState([]);
   const [rows, setRows] = useState([]);
@@ -43,8 +44,6 @@ export default function AdminManagementView() {
   const [formError, setFormError] = useState('');
 
   const [passwordTarget, setPasswordTarget] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
@@ -215,29 +214,21 @@ export default function AdminManagementView() {
   };
 
   const openPasswordModal = (row) => {
+    if (Number(row.id) === currentUserId) {
+      setError(t.admin_reset_self_blocked);
+      return;
+    }
     setPasswordTarget(row);
-    setNewPassword('');
-    setConfirmPassword('');
     setPasswordError('');
   };
 
   const closePasswordModal = () => {
     setPasswordTarget(null);
-    setNewPassword('');
-    setConfirmPassword('');
     setPasswordError('');
   };
 
   const submitPasswordReset = async () => {
     if (!authToken || !passwordTarget || passwordBusy) return;
-    if (newPassword.length < 6) {
-      setPasswordError(t.admin_password_min);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError(t.admin_password_mismatch);
-      return;
-    }
 
     setPasswordBusy(true);
     setPasswordError('');
@@ -245,7 +236,7 @@ export default function AdminManagementView() {
       await fetchJSON(`${API_BASE_URL}/api/admin/users/${passwordTarget.id}/password`, {
         method: 'PUT',
         headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ new_password: newPassword }),
+        body: JSON.stringify({}),
       });
       setMessage(t.admin_reset_success);
       closePasswordModal();
@@ -391,7 +382,8 @@ export default function AdminManagementView() {
                       </button>
                       <button
                         onClick={() => openPasswordModal(row)}
-                        className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium"
+                        disabled={Number(row.id) === currentUserId}
+                        className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <KeyRound className="w-3.5 h-3.5 mr-1" />
                         {t.admin_reset_pwd}
@@ -552,23 +544,7 @@ export default function AdminManagementView() {
               </button>
             </div>
 
-            <p className="text-sm text-gray-500 mb-4">{t.admin_reset_target}{passwordTarget.username}</p>
-            <div className="space-y-3">
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={t.admin_password_ph}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t.admin_password_confirm_ph}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
+            <p className="text-sm text-gray-500 mb-4">{t.admin_reset_target(passwordTarget.username)}</p>
 
             {passwordError ? <p className="mt-4 text-xs text-amber-600">{passwordError}</p> : null}
             <div className="mt-6 flex justify-end gap-2">
