@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './AppLayout';
 import LoginPage from './LoginPage';
-import { AdminManagementView, CostAnalysisView, HomeView, ProcessTrackingView, ReportView, UploadView } from './views';
+import { AdminManagementView, AuditReviewView, CostAnalysisView, HomeView, ProcessTrackingView, ReportView, UploadView } from './views';
 import { AuthProvider, useAuth } from './shared/auth/AuthContext';
 import RequireAuth from './shared/auth/RequireAuth';
 
-function LoginRoute() {
+function LoginRoute({ lang, onLangChange }) {
   const { isLoggedIn } = useAuth();
   if (isLoggedIn) return <Navigate to="/" replace />;
-  return <LoginPage />;
+  return <LoginPage lang={lang} onLangChange={onLangChange} />;
 }
 
 function AdminRoute({ children }) {
@@ -24,11 +24,11 @@ function RoleRoute({ canAccess, children }) {
 }
 
 function AppRoutes({ lang, onLangChange }) {
-  const { canAccessUpload, canAccessCost } = useAuth();
+  const { canAccessUpload, canAccessCost, canAccessAudit } = useAuth();
 
   return (
     <Routes>
-      <Route path="/login" element={<LoginRoute />} />
+      <Route path="/login" element={<LoginRoute lang={lang} onLangChange={onLangChange} />} />
       <Route
         path="/"
         element={
@@ -41,6 +41,7 @@ function AppRoutes({ lang, onLangChange }) {
         <Route path="upload" element={<RoleRoute canAccess={canAccessUpload}><UploadView /></RoleRoute>} />
         <Route path="process" element={<ProcessTrackingView />} />
         <Route path="cost" element={<RoleRoute canAccess={canAccessCost}><CostAnalysisView /></RoleRoute>} />
+        <Route path="audit" element={<RoleRoute canAccess={canAccessAudit}><AuditReviewView /></RoleRoute>} />
         <Route path="report" element={<ReportView />} />
         <Route path="admin" element={<AdminRoute><AdminManagementView /></AdminRoute>} />
       </Route>

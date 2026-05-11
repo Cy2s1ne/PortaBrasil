@@ -6,10 +6,10 @@ from app.services.llm_service import LLMService
 
 
 AUDIT_PROMPT = """
-你是一名巴西清关业务审计专家。请只返回 JSON 对象，不要返回任何额外文本。
+你是一名巴西清关业务审计专家。请只返回 JSON/json 对象，不要返回任何额外文本。
 你需要输出业务记录中的风险、异常与改进建议。
 
-输出 JSON 结构：
+输出 JSON/json 结构：
 {
   "risk_level": "LOW|MEDIUM|HIGH",
   "score": 0-100,
@@ -34,10 +34,10 @@ AUDIT_PROMPT = """
 
 
 FINANCE_PROMPT = """
-你是一名财务核算与成本控制专家。请只返回 JSON 对象，不要返回任何额外文本。
+你是一名财务核算与成本控制专家。请只返回 JSON/json 对象，不要返回任何额外文本。
 你要评估该成本记录的健康度、异常点和财务建议。
 
-输出 JSON 结构：
+输出 JSON/json 结构：
 {
   "health_level": "GOOD|WATCH|RISK",
   "score": 0-100,
@@ -706,4 +706,3 @@ def run_finance_review(db, *, cost_record_id: int, created_by: int | None = None
             [review_id],
         )
     return _serialize_finance_review(review_row, review_items)
-

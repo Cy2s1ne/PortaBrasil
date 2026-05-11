@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock, DollarSign, FileCheck } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
@@ -8,6 +9,7 @@ import { useAuth } from '../shared/auth/AuthContext';
 
 export default function HomeView() {
   const { auth, currentUserName } = useAuth();
+  const navigate = useNavigate();
   const t = useT();
   const authToken = auth?.access_token;
   const [overview, setOverview] = useState(null);
@@ -91,7 +93,11 @@ export default function HomeView() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{welcomeMessage}</h2>
           <p className="text-gray-500">{t.welcomeSub(stats.in_progress || 0, stats.anomaly || 0)}</p>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
+        <button
+          type="button"
+          onClick={() => navigate('/upload')}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-sm"
+        >
           {t.newDeclaration}
         </button>
       </div>

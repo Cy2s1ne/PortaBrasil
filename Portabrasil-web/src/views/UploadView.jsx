@@ -14,6 +14,7 @@ export default function UploadView() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState({ type: '', message: '' });
 
   const authToken = auth?.access_token;
 
@@ -47,8 +48,10 @@ export default function UploadView() {
     const formData = new FormData();
     formData.append('file', selected);
     formData.append('parse', 'true');
+    formData.append('auto_audit', 'true');
     setUploading(true);
     setError('');
+    setNotice({ type: '', message: '' });
     try {
       const response = await fetch(`${API_BASE_URL}/api/files/upload`, {
         method: 'POST',
@@ -58,6 +61,11 @@ export default function UploadView() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || 'Upload failed');
+      }
+      if (data?.audit) {
+        setNotice({ type: 'success', message: t.upload_audit_done(data.audit.source, data.audit.risk_level) });
+      } else if (data?.audit_error) {
+        setNotice({ type: 'warning', message: t.upload_audit_failed(data.audit_error) });
       }
       await loadFiles();
     } catch (err) {
@@ -129,6 +137,11 @@ export default function UploadView() {
           })}
         </div>
         {error ? <p className="text-xs text-amber-600 mt-3">{error}</p> : null}
+        {notice.message ? (
+          <p className={`text-xs mt-3 ${notice.type === 'warning' ? 'text-amber-600' : 'text-emerald-600'}`}>
+            {notice.message}
+          </p>
+        ) : null}
       </div>
     </div>
   );

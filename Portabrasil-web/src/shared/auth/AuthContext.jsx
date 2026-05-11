@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
   );
   const canAccessUpload = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMS']);
   const canAccessCost = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FINANCE']);
+  const canAccessAudit = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMS', 'FINANCE']);
 
   useEffect(() => {
     if (!auth?.access_token) {
@@ -97,6 +98,7 @@ export function AuthProvider({ children }) {
     canManageAdmins,
     canAccessUpload,
     canAccessCost,
+    canAccessAudit,
     hasAnyRole,
     login,
     logout,

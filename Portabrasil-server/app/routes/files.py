@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, current_app, g, request
 from werkzeug.utils import secure_filename
 
 from app.core.auth import jwt_required
@@ -39,6 +39,7 @@ def upload_file():
 
     saved_path, file_size, file_hash = save_upload(file_storage)
     parse_now = is_truthy(request.form.get("parse"), default=True)
+    auto_audit = is_truthy(request.form.get("auto_audit"), default=True)
 
     db = current_app.config["DB"]
     with db.connection() as conn:
@@ -55,7 +56,12 @@ def upload_file():
         Path(saved_path).unlink()
 
     if parse_now and pdf_file["parse_status"] != "SUCCESS":
-        result = parse_file_and_store(db, int(pdf_file["id"]))
+        result = parse_file_and_store(
+            db,
+            int(pdf_file["id"]),
+            created_by=int(g.current_user["id"]),
+            auto_audit=auto_audit,
+        )
         return api_response({"duplicated": duplicated, **result}, 201 if not duplicated else 200)
 
     return api_response({"duplicated": duplicated, "file": pdf_file}, 201 if not duplicated else 200)
@@ -65,7 +71,13 @@ def upload_file():
 @jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
 def parse_existing_file(file_id: int):
     db = current_app.config["DB"]
-    result = parse_file_and_store(db, file_id)
+    auto_audit = is_truthy(request.args.get("auto_audit"), default=True)
+    result = parse_file_and_store(
+        db,
+        file_id,
+        created_by=int(g.current_user["id"]),
+        auto_audit=auto_audit,
+    )
     return api_response(result)
 
 

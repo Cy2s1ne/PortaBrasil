@@ -4,6 +4,7 @@ import {
   BarChart2,
   Bell,
   ChevronRight,
+  ClipboardCheck,
   Globe,
   Home,
   KeyRound,
@@ -28,7 +29,7 @@ const LANG_LABELS = { zh: '中文', en: 'EN', pt: 'PT' };
 const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=e2e8f0';
 
 export default function AppLayout({ lang, onLangChange }) {
-  const { auth, currentUserName, canManageAdmins, canAccessUpload, canAccessCost, logout } = useAuth();
+  const { auth, currentUserName, canManageAdmins, canAccessUpload, canAccessCost, canAccessAudit, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
@@ -45,6 +46,7 @@ export default function AppLayout({ lang, onLangChange }) {
     ...(canAccessUpload ? [{ key: 'upload', label: t.nav_upload, icon: UploadCloud, path: '/upload' }] : []),
     { key: 'process', label: t.nav_process, icon: MapIcon, path: '/process' },
     ...(canAccessCost ? [{ key: 'cost', label: t.nav_cost, icon: PieChart, path: '/cost' }] : []),
+    ...(canAccessAudit ? [{ key: 'audit', label: t.nav_audit, icon: ClipboardCheck, path: '/audit' }] : []),
     { key: 'report', label: t.nav_report, icon: BarChart2, path: '/report' },
     ...(canManageAdmins ? [{ key: 'admin', label: t.nav_admin, icon: ShieldCheck, path: '/admin' }] : []),
   ];
@@ -54,6 +56,7 @@ export default function AppLayout({ lang, onLangChange }) {
     '/upload': t.nav_upload,
     '/process': t.nav_process,
     '/cost': t.nav_cost,
+    '/audit': t.nav_audit,
     '/report': t.nav_report,
     '/admin': t.nav_admin,
   };

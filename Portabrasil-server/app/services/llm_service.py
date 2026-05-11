@@ -12,6 +12,8 @@ DEFAULT_PROVIDER = (os.getenv("LLM_PROVIDER") or "qwen").strip().lower()
 DEFAULT_ZHIPU_MODEL = os.getenv("ZHIPU_LLM_MODEL", "glm-4-flash")
 DEFAULT_QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen-plus")
 DEFAULT_QWEN_BASE_URL = (os.getenv("QWEN_BASE_URL") or "https://dashscope.aliyuncs.com/compatible-mode/v1").strip().rstrip("/")
+DEFAULT_DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+DEFAULT_DEEPSEEK_BASE_URL = (os.getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").strip().rstrip("/")
 
 
 def _extract_json_text(text: str) -> str:
@@ -57,6 +59,10 @@ class LLMService:
             self.api_key = api_key or os.getenv("DASHSCOPE_API_KEY") or os.getenv("QWEN_API_KEY")
             self.model = model or DEFAULT_QWEN_MODEL
             self.base_url = DEFAULT_QWEN_BASE_URL
+        elif self.provider == "deepseek":
+            self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
+            self.model = model or DEFAULT_DEEPSEEK_MODEL
+            self.base_url = DEFAULT_DEEPSEEK_BASE_URL
         elif self.provider == "zhipu":
             self.api_key = api_key or os.getenv("ZHIPU_API_KEY")
             self.model = model or DEFAULT_ZHIPU_MODEL
@@ -68,6 +74,8 @@ class LLMService:
     @property
     def enabled(self) -> bool:
         if self.provider == "qwen":
+            return bool(self.api_key and self.base_url)
+        if self.provider == "deepseek":
             return bool(self.api_key and self.base_url)
         if self.provider == "zhipu":
             return bool(self.client and self.api_key)
@@ -91,8 +99,10 @@ class LLMService:
         payload = {
             "model": model or self.model,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": max(max_tokens, 4096),
             "response_format": {"type": "json_object"},
+            "thinking": {"type": "disabled"},
+            "stream": False,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {
@@ -158,6 +168,107 @@ class LLMService:
         }
         return parsed, meta
 
+    def _complete_json_with_deepseek(
+        self,
+        *,
+        system_prompt: str,
+        user_payload: dict[str, Any],
+        model: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 1800,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        if not self.api_key:
+            raise RuntimeError("DEEPSEEK_API_KEY 未配置，无法调用 DeepSeek 模型")
+        if not self.base_url:
+            raise RuntimeError("DEEPSEEK_BASE_URL 未配置")
+
+        endpoint = f"{self.base_url}/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+        user_content = json.dumps(user_payload, ensure_ascii=False, default=str)
+        attempts = [
+            (True, ""),
+            (True, "\n\n请务必返回一个非空 json 对象。不要解释，不要使用 Markdown。"),
+            (False, "\n\n请只输出一个非空 json 对象。不要解释，不要使用 Markdown。"),
+        ]
+        empty_response_count = 0
+        last_error: str | None = None
+
+        for attempt_no, (use_json_mode, extra_hint) in enumerate(attempts, start=1):
+            payload = {
+                "model": model or self.model,
+                "temperature": temperature,
+                "max_tokens": max(max_tokens, 4096),
+                "thinking": {"type": "disabled"},
+                "stream": False,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content + extra_hint},
+                ],
+            }
+            if use_json_mode:
+                payload["response_format"] = {"type": "json_object"}
+
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            request = Request(endpoint, data=body, headers=headers, method="POST")
+
+            try:
+                with urlopen(request, timeout=90) as response:
+                    raw = response.read().decode("utf-8")
+            except HTTPError as exc:
+                try:
+                    error_text = exc.read().decode("utf-8")
+                except Exception:
+                    error_text = str(exc)
+                raise RuntimeError(f"DeepSeek 调用失败: {error_text}") from exc
+            except URLError as exc:
+                raise RuntimeError(f"DeepSeek 网络请求失败: {exc}") from exc
+
+            try:
+                data = json.loads(raw)
+            except Exception as exc:
+                raise RuntimeError(f"DeepSeek 返回内容不是合法 JSON: {raw[:200]}") from exc
+
+            if isinstance(data.get("error"), dict):
+                message = data["error"].get("message") or str(data["error"])
+                raise RuntimeError(f"DeepSeek 返回错误: {message}")
+
+            choices = data.get("choices") or []
+            if not choices:
+                raise RuntimeError("DeepSeek 未返回候选结果")
+            message = choices[0].get("message") or {}
+            content = message.get("content")
+            if not content:
+                empty_response_count += 1
+                last_error = f"第 {attempt_no} 次请求返回空 content"
+                continue
+
+            try:
+                if isinstance(content, dict):
+                    parsed = content
+                else:
+                    parsed = _loads_json_safely(str(content or ""))
+            except Exception as exc:
+                last_error = str(exc)
+                if attempt_no < len(attempts):
+                    continue
+                raise
+
+            meta = {
+                "provider": "deepseek",
+                "model": data.get("model") or model or self.model,
+                "request_id": data.get("id"),
+                "usage": data.get("usage"),
+                "attempts": attempt_no,
+                "json_mode": use_json_mode,
+                "empty_response_count": empty_response_count,
+            }
+            return parsed, meta
+
+        raise RuntimeError(f"DeepSeek 返回内容为空，已重试 {len(attempts)} 次。最后错误: {last_error or 'unknown'}")
+
     def _complete_json_with_zhipu(
         self,
         *,
@@ -216,6 +327,15 @@ class LLMService:
 
         if self.provider == "qwen":
             return self._complete_json_with_qwen(
+                system_prompt=system_prompt,
+                user_payload=user_payload,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+        if self.provider == "deepseek":
+            return self._complete_json_with_deepseek(
                 system_prompt=system_prompt,
                 user_payload=user_payload,
                 model=model,

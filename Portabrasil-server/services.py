@@ -204,7 +204,13 @@ def upsert_business_with_fees(
     return business
 
 
-def parse_file_and_store(db: Database, file_id: int) -> dict[str, Any]:
+def parse_file_and_store(
+    db: Database,
+    file_id: int,
+    *,
+    created_by: int | None = None,
+    auto_audit: bool = True,
+) -> dict[str, Any]:
     with db.connection() as conn:
         pdf_file = db.fetchone(conn, "SELECT * FROM pdf_file WHERE id = " + db.placeholder, [file_id])
         if not pdf_file:
@@ -226,7 +232,25 @@ def parse_file_and_store(db: Database, file_id: int) -> dict[str, Any]:
             business = upsert_business_with_fees(db, conn, raw_text=content, source_file_id=file_id)
             complete_parse_task(db, conn, int(task["id"]), parser_result)
             db.update_by_id(conn, "pdf_file", file_id, {"parse_status": "SUCCESS"})
-            return {"file": db.fetchone(conn, "SELECT * FROM pdf_file WHERE id = " + db.placeholder, [file_id]), "task_id": task["id"], "business": business}
+            result = {
+                "file": db.fetchone(conn, "SELECT * FROM pdf_file WHERE id = " + db.placeholder, [file_id]),
+                "task_id": task["id"],
+                "business": business,
+            }
+
+        if auto_audit:
+            try:
+                from app.services.audit_finance_service import run_audit_review
+
+                result["audit"] = run_audit_review(
+                    db,
+                    business_id=int(business["id"]),
+                    created_by=created_by,
+                )
+            except Exception as audit_exc:
+                result["audit_error"] = str(audit_exc)
+
+        return result
     except Exception as exc:
         with db.connection() as conn:
             complete_parse_task(db, conn, int(task["id"]), {"error": str(exc)}, status="FAILED", error=str(exc))

@@ -53,11 +53,21 @@ mysql -u root -p portabrasil < sql/schema.sql
 
 ```bash
 export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=utf8mb4'
-export ZHIPU_API_KEY='你的智谱APIKey'
+export LLM_PROVIDER='deepseek'
+export DEEPSEEK_API_KEY='你的DeepSeek API Key'
+export DEEPSEEK_MODEL='deepseek-v4-pro'
 export UPLOAD_DIR='./uploads'
 export JWT_SECRET='请换成你自己的长随机字符串'
 export JWT_EXPIRES_MINUTES='120'
 ```
+
+审计与财务复核的大模型由 `LLM_PROVIDER` 控制：
+
+- `deepseek`：使用 `DEEPSEEK_API_KEY`，默认模型 `deepseek-v4-pro`
+- `qwen`：使用 `DASHSCOPE_API_KEY` 或 `QWEN_API_KEY`，默认模型 `qwen-plus`
+- `zhipu`：使用 `ZHIPU_API_KEY`，默认模型 `glm-4-flash`
+
+没有配置对应 API Key 时，审计服务会自动降级为规则引擎。
 
 `.env.example` 只作为字段模板，不要把真实密钥写进仓库。如果你仍然想在本地保留 `.env` 给 IDE 使用，根目录 `.gitignore` 已经忽略 `.env`、`*.env` 和 `Portabrasil-server/.env`。
 

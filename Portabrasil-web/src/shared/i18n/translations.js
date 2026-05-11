@@ -1,7 +1,7 @@
 export const TRANSLATIONS = {
   zh: {
     appName: '巴西海关报关系统',
-    nav_home: '首页', nav_upload: '报关单据上传', nav_process: '流程跟踪', nav_cost: '成本分析', nav_report: '报表分析', nav_admin: '用户管理',
+    nav_home: '首页', nav_upload: '报关单据上传', nav_process: '流程跟踪', nav_cost: '成本分析', nav_audit: '审计复核', nav_report: '报表分析', nav_admin: '用户管理',
     system: '系统', globalSearch: '全局搜索...', admin: '超级管理员',
     needHelp: '需要帮助？', helpDesc: '查看巴西清关操作指南', contactSupport: '联系客服',
     welcome: (name) => (name ? `欢迎回来，${name}！` : '欢迎回来！'),
@@ -25,6 +25,8 @@ export const TRANSLATIONS = {
     upload_title: '报关单据上传', upload_drag: '点击或将文件拖拽到这里上传',
     upload_formats: '支持 PDF, JPG, PNG 格式，单个文件不超过 10MB', browse: '浏览文件',
     recent_uploads: '最近上传文件', verified: '已验证', ai_processing: 'AI 识别中...',
+    upload_audit_done: (source, risk) => `解析完成，已自动审计：${source || '-'} / ${risk || '-'}`,
+    upload_audit_failed: (message) => `解析完成，但自动审计失败：${message}`,
     process_list_title: '清关流程 — 提单列表', process_list_desc: '点击「查看流程」进入该提单的流程跟踪详情',
     search_placeholder: '搜索提单号或货名...', filter: '筛选',
     bl_number: '提单号 (B/L)', goods_desc: '货物描述', declaration_date: '申报日期', port_col: '港口', status_col: '状态', action_col: '操作',
@@ -71,7 +73,7 @@ export const TRANSLATIONS = {
   },
   en: {
     appName: 'Brazil Customs System',
-    nav_home: 'Home', nav_upload: 'Customs Document Upload', nav_process: 'Process Tracking', nav_cost: 'Cost Analysis', nav_report: 'Reports', nav_admin: 'User Management',
+    nav_home: 'Home', nav_upload: 'Customs Document Upload', nav_process: 'Process Tracking', nav_cost: 'Cost Analysis', nav_audit: 'Audit Review', nav_report: 'Reports', nav_admin: 'User Management',
     system: 'System', globalSearch: 'Search...', admin: 'Super Admin',
     needHelp: 'Need Help?', helpDesc: 'View Brazil Customs Guide', contactSupport: 'Contact Support',
     welcome: (name) => (name ? `Welcome back, ${name}!` : 'Welcome back!'),
@@ -95,6 +97,8 @@ export const TRANSLATIONS = {
     upload_title: 'Customs Document Upload', upload_drag: 'Click or drag files here to upload',
     upload_formats: 'Supports PDF, JPG, PNG. Max 10MB per file.', browse: 'Browse Files',
     recent_uploads: 'Recently Uploaded Files', verified: 'Verified', ai_processing: 'AI Processing...',
+    upload_audit_done: (source, risk) => `Parsed and audited automatically: ${source || '-'} / ${risk || '-'}`,
+    upload_audit_failed: (message) => `Parsed, but automatic audit failed: ${message}`,
     process_list_title: 'Clearance Process — B/L List', process_list_desc: 'Click “View Process” to enter process tracking',
     search_placeholder: 'Search B/L or cargo...', filter: 'Filter',
     bl_number: 'B/L Number', goods_desc: 'Cargo Description', declaration_date: 'Declaration Date', port_col: 'Port', status_col: 'Status', action_col: 'Action',
@@ -141,7 +145,7 @@ export const TRANSLATIONS = {
   },
   pt: {
     appName: 'Sistema Aduaneiro Brasil',
-    nav_home: 'Início', nav_upload: 'Upload de Documentos Aduaneiros', nav_process: 'Rastreamento', nav_cost: 'Análise de Custos', nav_report: 'Relatórios', nav_admin: 'Gestão de Usuários',
+    nav_home: 'Início', nav_upload: 'Upload de Documentos Aduaneiros', nav_process: 'Rastreamento', nav_cost: 'Análise de Custos', nav_audit: 'Auditoria', nav_report: 'Relatórios', nav_admin: 'Gestão de Usuários',
     system: 'Sistema', globalSearch: 'Buscar...', admin: 'Super Administrador',
     needHelp: 'Precisa de Ajuda?', helpDesc: 'Ver guia de desembaraço', contactSupport: 'Suporte',
     welcome: (name) => (name ? `Bem-vindo de volta, ${name}!` : 'Bem-vindo de volta!'),
@@ -165,6 +169,8 @@ export const TRANSLATIONS = {
     upload_title: 'Upload de Documentos Aduaneiros', upload_drag: 'Clique ou arraste arquivos aqui',
     upload_formats: 'Suporta PDF, JPG, PNG. Máx. 10MB por arquivo.', browse: 'Procurar Arquivos',
     recent_uploads: 'Arquivos Recentes', verified: 'Verificado', ai_processing: 'Processando com IA...',
+    upload_audit_done: (source, risk) => `Analisado e auditado automaticamente: ${source || '-'} / ${risk || '-'}`,
+    upload_audit_failed: (message) => `Analisado, mas auditoria automatica falhou: ${message}`,
     process_list_title: 'Processo de Desembaraço — Lista de CE', process_list_desc: 'Clique em “Ver Processo” para rastrear',
     search_placeholder: 'Buscar CE ou carga...', filter: 'Filtrar',
     bl_number: 'Conhecimento de Embarque', goods_desc: 'Descrição da Carga', declaration_date: 'Data de Declaração', port_col: 'Porto', status_col: 'Status', action_col: 'Ação',
