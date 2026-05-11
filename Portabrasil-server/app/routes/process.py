@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, request
 
 from app.core.auth import jwt_required
 from app.core.responses import api_response
+from services import sync_missing_process_records
 
 bp = Blueprint("process_api", __name__)
 
@@ -62,9 +63,10 @@ def list_process_records():
         where_sql = " WHERE " + " AND ".join(where_parts)
 
     with db.connection() as conn:
+        sync_missing_process_records(db, conn)
         rows = db.fetchall(
             conn,
-            "SELECT id, bl_no, goods_desc, declaration_date, port_name, overall_status, created_time, updated_time "
+            "SELECT id, business_id, bl_no, goods_desc, declaration_date, port_name, overall_status, created_time, updated_time "
             "FROM customs_process_record"
             + where_sql
             + " ORDER BY declaration_date DESC, id DESC LIMIT "
@@ -78,6 +80,7 @@ def list_process_records():
     items = [
         {
             "id": int(row["id"]),
+            "business_id": row.get("business_id"),
             "bl": row["bl_no"],
             "goods_desc": row.get("goods_desc"),
             "declaration_date": row.get("declaration_date"),
@@ -107,7 +110,7 @@ def get_process_record(record_id: int):
     with db.connection() as conn:
         record = db.fetchone(
             conn,
-            "SELECT id, bl_no, goods_desc, declaration_date, port_name, overall_status, created_time, updated_time "
+            "SELECT id, business_id, bl_no, goods_desc, declaration_date, port_name, overall_status, created_time, updated_time "
             "FROM customs_process_record WHERE id = " + db.placeholder,
             [record_id],
         )
@@ -129,6 +132,7 @@ def get_process_record(record_id: int):
         {
             "record": {
                 "id": int(record["id"]),
+                "business_id": record.get("business_id"),
                 "bl": record.get("bl_no"),
                 "goods_desc": record.get("goods_desc"),
                 "declaration_date": record.get("declaration_date"),

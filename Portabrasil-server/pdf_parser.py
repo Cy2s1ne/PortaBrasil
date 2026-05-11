@@ -5,6 +5,7 @@ from typing import Optional, Callable, Union
 from pathlib import Path
 
 from zai import ZhipuAiClient
+from zai.core import APIStatusError
 
 
 class PDFParser:
@@ -44,8 +45,8 @@ class PDFParser:
     def parse(
         self,
         file_path: Union[str, Path],
-        file_type: str = "pdf",
-        tool_type: str = "lite",
+        file_type: str | None = None,
+        tool_type: str | None = None,
         format_type: str = "text",
         callback: Optional[Callable[[dict], None]] = None
     ) -> dict:
@@ -63,15 +64,15 @@ class PDFParser:
             解析结果字典，包含 status 和 content 字段
         """
         path = self._validate_file(file_path)
+        if path.stat().st_size <= 0:
+            raise ValueError(f"PDF 文件为空: {file_path}")
+
+        selected_file_type = (file_type or os.getenv("ZHIPU_PDF_FILE_TYPE") or "PDF").strip()
+        selected_tool_type = (tool_type or os.getenv("ZHIPU_PDF_TOOL_TYPE") or "lite").strip()
         start_time = time.time()
 
         # 1. 创建解析任务
-        with open(path, "rb") as f:
-            response = self.client.file_parser.create(
-                file=f,
-                file_type=file_type,
-                tool_type=tool_type
-            )
+        response = self._create_parse_task(path, selected_file_type, selected_tool_type)
 
         task_id = getattr(response, "task_id", None)
         if not task_id:
@@ -100,6 +101,34 @@ class PDFParser:
                 raise RuntimeError(f"解析失败: {result.get('error', 'unknown error')}")
             else:
                 time.sleep(self.polling_interval)
+
+    def _create_parse_task(self, path: Path, file_type: str, tool_type: str):
+        attempts = [file_type]
+        swapped_case = file_type.upper() if file_type != file_type.upper() else file_type.lower()
+        if swapped_case not in attempts:
+            attempts.append(swapped_case)
+
+        errors: list[str] = []
+        for current_file_type in attempts:
+            try:
+                with open(path, "rb") as f:
+                    return self.client.file_parser.create(
+                        file=f,
+                        file_type=current_file_type,
+                        tool_type=tool_type,
+                    )
+            except APIStatusError as exc:
+                message = str(exc)
+                errors.append(f"file_type={current_file_type}, tool_type={tool_type}: {message}")
+                if getattr(exc, "status_code", None) != 400:
+                    break
+
+        raise RuntimeError(
+            "创建智谱 PDF 解析任务失败。"
+            "请确认 ZHIPU_API_KEY 有效、文件是可解析 PDF，"
+            "必要时设置 ZHIPU_PDF_TOOL_TYPE=prime。"
+            f" 尝试详情: {' | '.join(errors)}"
+        )
 
     async def aparse(
         self,

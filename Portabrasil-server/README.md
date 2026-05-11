@@ -1,6 +1,6 @@
 # PortaBrasil Flask 后端
 
-这个后端负责 PDF 上传、智谱 PDF 解析、解析文本规则化、写入 `sql/schema.sql` 中的业务表，以及基础查询接口。
+这个后端负责 PDF 上传、智谱 PDF 解析、LangChain/LangGraph 智能体编排、解析文本规则化、写入 `sql/schema.sql` 中的业务表，以及基础查询接口。
 
 ## 0. 工程化结构
 
@@ -14,6 +14,10 @@ Portabrasil-server/
 │   ├── core/
 │   │   ├── auth.py          # JWT、密码哈希、鉴权装饰器、用户查询
 │   │   └── responses.py     # 统一 JSON 响应与序列化
+│   ├── agents/
+│   │   ├── pdf_agent.py     # PDF 文档入库智能体
+│   │   ├── audit_agent.py   # 业务审计与财务复核多智能体
+│   │   └── llm_factory.py   # LangChain ChatModel 工厂
 │   └── routes/
 │       ├── health.py        # 健康检查
 │       ├── auth.py          # 登录/注册/忘记密码/用户管理
@@ -56,18 +60,23 @@ export DATABASE_URL='mysql://root:password@127.0.0.1:3306/portabrasil?charset=ut
 export LLM_PROVIDER='deepseek'
 export DEEPSEEK_API_KEY='你的DeepSeek API Key'
 export DEEPSEEK_MODEL='deepseek-v4-pro'
+export ZHIPU_API_KEY='你的智谱 API Key'
+export ZHIPU_PDF_FILE_TYPE='PDF'
+export ZHIPU_PDF_TOOL_TYPE='lite'
 export UPLOAD_DIR='./uploads'
 export JWT_SECRET='请换成你自己的长随机字符串'
 export JWT_EXPIRES_MINUTES='120'
 ```
 
-审计与财务复核的大模型由 `LLM_PROVIDER` 控制：
+审计与财务复核的大模型由 `LLM_PROVIDER` 控制。业务审计和财务复核通过 LangChain/LangGraph 多智能体执行，模型不可用时自动降级为规则引擎：
 
 - `deepseek`：使用 `DEEPSEEK_API_KEY`，默认模型 `deepseek-v4-pro`
 - `qwen`：使用 `DASHSCOPE_API_KEY` 或 `QWEN_API_KEY`，默认模型 `qwen-plus`
 - `zhipu`：使用 `ZHIPU_API_KEY`，默认模型 `glm-4-flash`
 
 没有配置对应 API Key 时，审计服务会自动降级为规则引擎。
+
+PDF 解析仍依赖 `ZHIPU_API_KEY`。如果 PDF 是扫描件或复杂版式，建议把 `ZHIPU_PDF_TOOL_TYPE` 从 `lite` 改为 `prime`。
 
 `.env.example` 只作为字段模板，不要把真实密钥写进仓库。如果你仍然想在本地保留 `.env` 给 IDE 使用，根目录 `.gitignore` 已经忽略 `.env`、`*.env` 和 `Portabrasil-server/.env`。
 
@@ -145,11 +154,17 @@ curl -X POST http://127.0.0.1:5001/api/files/upload \
 
 1. 保存文件到 `uploads/YYYYMMDD/`
 2. 写入 `pdf_file`
-3. 创建 `pdf_parse_task`
-4. 调用智谱 PDF parser 得到文本
-5. 规则解析字段和费用明细
-6. 写入 `customs_business` 和 `customs_business_fee_item`
-7. 更新文件和任务状态
+3. 创建 `pdf_parse_task`，解析类型为 `LANGCHAIN_AGENT`
+4. `ParserStrategyAgent` 自主选择解析工具，默认 `lite`，质量不足时准备升级 `prime`
+5. `DocumentParserAgent` 调用智谱 PDF parser 得到文本
+6. `ExtractionQualityAgent` 根据文本长度、核心字段和费用明细预检结果决定继续、重试或人工复核
+7. `BusinessExtractionAgent` 规则解析字段和费用明细
+8. `FieldValidationAgent` 校验核心字段和费用明细完整性
+9. 写入 `customs_business` 和 `customs_business_fee_item`
+10. `AutoAuditAgent` 可选触发 LangChain 多智能体审计
+11. 更新文件和任务状态，并在 `raw_result` 中保存 agent trace、parser plan 和 parse attempts
+
+业务审计流程包含 `AuditPlannerAgent`，会根据字段缺失、费用明细、借贷差异和成本记录动态选择规则审计、资料完整性复核、成本交叉检查和 LLM 风险推理。财务复核流程包含 `FinancePlannerAgent`，会根据数量、汇率、退款比例和明细完整性选择规则复核或 LLM 辅助分析。
 
 ### 上传但暂不解析
 

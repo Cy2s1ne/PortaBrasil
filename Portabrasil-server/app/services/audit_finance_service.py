@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from app.services.llm_service import LLMService
+from app.agents.llm_factory import is_langchain_llm_enabled
 
 
 AUDIT_PROMPT = """
@@ -525,8 +525,7 @@ def run_audit_review(
         "fee_items": fee_items,
         "cost_record": cost_record,
     }
-    llm = LLMService()
-    source = "LLM" if llm.enabled else "RULE"
+    source = "LANGCHAIN_AGENT" if is_langchain_llm_enabled() else "RULE"
 
     with db.connection() as conn:
         run_id = db.insert(
@@ -536,7 +535,7 @@ def run_audit_review(
                 "business_id": business_id,
                 "cost_record_id": cost_record_id,
                 "source": source,
-                "model_name": llm.model if llm.enabled else None,
+                "model_name": None,
                 "status": "PROCESSING",
                 "created_by": created_by,
                 "input_json": _dumps_json(snapshot),
@@ -546,23 +545,25 @@ def run_audit_review(
         )
 
     result_data: dict[str, Any]
-    model_name = llm.model if llm.enabled else None
+    model_name = None
     raw_output = None
     error_message = None
     try:
-        if llm.enabled:
-            llm_payload, meta = llm.complete_json(system_prompt=AUDIT_PROMPT, user_payload=snapshot)
-            normalized = _normalize_audit_response(llm_payload)
-            model_name = meta.get("model") or model_name
-            raw_output = _dumps_json(llm_payload)
-            result_data = normalized
-        else:
-            result_data = _build_rule_audit(business, fee_items, cost_record)
-            raw_output = _dumps_json(result_data)
+        from app.agents.audit_agent import run_business_audit_agent
+
+        agent_output = run_business_audit_agent(
+            snapshot=snapshot,
+            business=business,
+            fee_items=fee_items,
+            cost_record=cost_record,
+        )
+        result_data = agent_output["result"]
+        model_name = agent_output.get("meta", {}).get("model") or model_name
+        raw_output = _dumps_json(agent_output.get("raw_output"))
     except Exception as exc:
         error_message = str(exc)
         fallback = _build_rule_audit(business, fee_items, cost_record)
-        fallback["summary"] = f"{fallback['summary']}（模型调用失败，已切换规则引擎）"
+        fallback["summary"] = f"{fallback['summary']}（智能体流程失败，已切换规则引擎）"
         result_data = fallback
         raw_output = _dumps_json({"error": str(exc), "fallback": fallback})
         source = "RULE"
@@ -623,8 +624,7 @@ def run_finance_review(db, *, cost_record_id: int, created_by: int | None = None
         raise LookupError("成本记录不存在")
 
     snapshot = {"cost_record": record, "cost_items": items}
-    llm = LLMService()
-    source = "LLM" if llm.enabled else "RULE"
+    source = "LANGCHAIN_AGENT" if is_langchain_llm_enabled() else "RULE"
 
     with db.connection() as conn:
         review_id = db.insert(
@@ -633,7 +633,7 @@ def run_finance_review(db, *, cost_record_id: int, created_by: int | None = None
             {
                 "cost_record_id": cost_record_id,
                 "source": source,
-                "model_name": llm.model if llm.enabled else None,
+                "model_name": None,
                 "status": "PROCESSING",
                 "created_by": created_by,
                 "input_json": _dumps_json(snapshot),
@@ -643,22 +643,24 @@ def run_finance_review(db, *, cost_record_id: int, created_by: int | None = None
         )
 
     result_data: dict[str, Any]
-    model_name = llm.model if llm.enabled else None
+    model_name = None
     raw_output = None
     error_message = None
     try:
-        if llm.enabled:
-            llm_payload, meta = llm.complete_json(system_prompt=FINANCE_PROMPT, user_payload=snapshot)
-            result_data = _normalize_finance_response(llm_payload)
-            model_name = meta.get("model") or model_name
-            raw_output = _dumps_json(llm_payload)
-        else:
-            result_data = _build_rule_finance(record, items)
-            raw_output = _dumps_json(result_data)
+        from app.agents.audit_agent import run_finance_review_agent
+
+        agent_output = run_finance_review_agent(
+            snapshot=snapshot,
+            record=record,
+            items=items,
+        )
+        result_data = agent_output["result"]
+        model_name = agent_output.get("meta", {}).get("model") or model_name
+        raw_output = _dumps_json(agent_output.get("raw_output"))
     except Exception as exc:
         error_message = str(exc)
         fallback = _build_rule_finance(record, items)
-        fallback["summary"] = f"{fallback['summary']}（模型调用失败，已切换规则引擎）"
+        fallback["summary"] = f"{fallback['summary']}（智能体流程失败，已切换规则引擎）"
         result_data = fallback
         raw_output = _dumps_json({"error": str(exc), "fallback": fallback})
         source = "RULE"

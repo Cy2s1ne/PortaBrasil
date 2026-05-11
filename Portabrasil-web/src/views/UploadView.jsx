@@ -6,6 +6,13 @@ import { formatFileSize } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
 import { useAuth } from '../shared/auth/AuthContext';
 
+const formatAgentSource = (source) => {
+  const value = String(source || '').toUpperCase();
+  if (value === 'LANGCHAIN_AGENT') return 'LangChain Agent';
+  if (value === 'RULE') return 'Rule Engine';
+  return source || '-';
+};
+
 export default function UploadView() {
   const { auth } = useAuth();
   const t = useT();
@@ -63,7 +70,7 @@ export default function UploadView() {
         throw new Error(data?.error || 'Upload failed');
       }
       if (data?.audit) {
-        setNotice({ type: 'success', message: t.upload_audit_done(data.audit.source, data.audit.risk_level) });
+        setNotice({ type: 'success', message: t.upload_audit_done(formatAgentSource(data.audit.source), data.audit.risk_level) });
       } else if (data?.audit_error) {
         setNotice({ type: 'warning', message: t.upload_audit_failed(data.audit_error) });
       }
@@ -107,6 +114,7 @@ export default function UploadView() {
           {files.map((file, i) => {
             const parseStatus = String(file.parse_status || '').toUpperCase();
             const done = parseStatus === 'SUCCESS';
+            const failed = parseStatus === 'FAILED';
             return (
               <div key={file.id || i} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:shadow-sm transition-shadow">
                 <div className="flex items-center space-x-4">
@@ -116,12 +124,19 @@ export default function UploadView() {
                   <div>
                     <div className="font-medium text-sm text-gray-800">{file.file_name}</div>
                     <div className="text-xs text-gray-500">{formatFileSize(file.file_size)} • {file.upload_time}</div>
+                    {failed && file.remark ? (
+                      <div className="text-xs text-red-500 mt-1 max-w-xl truncate" title={file.remark}>{file.remark}</div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
                   {done ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       {t.verified}
+                    </span>
+                  ) : failed ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      {t.parse_failed}
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">

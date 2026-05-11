@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -167,6 +167,12 @@ const statusClass = (status) => {
 };
 
 const fmtScore = (score) => Number(score || 0).toFixed(0);
+const fmtSource = (source) => {
+  const value = String(source || '').toUpperCase();
+  if (value === 'LANGCHAIN_AGENT') return 'LangChain Agent';
+  if (value === 'RULE') return 'Rule Engine';
+  return source || '-';
+};
 const fmtAmount = (amount) => {
   if (amount === null || amount === undefined || amount === '') return '-';
   return `${Number(amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} BRL`;
@@ -192,6 +198,11 @@ export default function AuditReviewView() {
   const [runMessage, setRunMessage] = useState('');
   const [form, setForm] = useState({ business_id: '', cost_record_id: '' });
   const [runBusy, setRunBusy] = useState(false);
+  const selectedRunIdRef = useRef(null);
+
+  useEffect(() => {
+    selectedRunIdRef.current = selectedRunId;
+  }, [selectedRunId]);
 
   const loadDetail = useCallback(async (runId) => {
     if (!authToken || !runId) return;
@@ -209,7 +220,7 @@ export default function AuditReviewView() {
     }
   }, [authToken]);
 
-  const loadRuns = useCallback(async () => {
+  const loadRuns = useCallback(async (preferredRunId = null) => {
     if (!authToken) return;
     setLoading(true);
     setError('');
@@ -220,8 +231,9 @@ export default function AuditReviewView() {
       const items = data?.items || [];
       setRuns(items);
       setTotal(Number(data?.total || items.length || 0));
-      const stillVisible = selectedRunId && items.some((item) => Number(item.id) === Number(selectedRunId));
-      const nextId = stillVisible ? selectedRunId : items[0]?.id;
+      const currentRunId = preferredRunId || selectedRunIdRef.current;
+      const stillVisible = currentRunId && items.some((item) => Number(item.id) === Number(currentRunId));
+      const nextId = stillVisible ? currentRunId : items[0]?.id;
       setSelectedRunId(nextId || null);
       if (nextId) loadDetail(nextId);
       if (!nextId) setSelectedRun(null);
@@ -230,7 +242,7 @@ export default function AuditReviewView() {
     } finally {
       setLoading(false);
     }
-  }, [authToken, loadDetail, selectedRunId]);
+  }, [authToken, loadDetail]);
 
   const loadBusinesses = useCallback(async () => {
     if (!authToken) return;
@@ -292,7 +304,7 @@ export default function AuditReviewView() {
         setSelectedRun(run);
       }
       setForm({ business_id: '', cost_record_id: '' });
-      loadRuns();
+      loadRuns(run?.id || null);
     } catch (err) {
       setRunMessage(err.message || 'failed');
     } finally {
@@ -517,7 +529,7 @@ export default function AuditReviewView() {
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                <MiniMeta label={text.source} value={selectedRun.source || '-'} />
+                <MiniMeta label={text.source} value={fmtSource(selectedRun.source)} />
                 <MiniMeta label={text.model} value={selectedRun.model_name || '-'} />
                 <MiniMeta label={text.status} value={selectedRun.status || '-'} />
                 <MiniMeta label={text.created} value={selectedRun.created_time || '-'} />

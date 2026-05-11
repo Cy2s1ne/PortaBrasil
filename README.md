@@ -54,8 +54,8 @@ Target users: logistics companies, customs brokers, and freight forwarders.
 | **Backend** | Python 3.11+, Flask 3, Flask-CORS |
 | **Auth** | JWT (PyJWT), SHA-256 password hashing |
 | **Database** | MySQL 8.x (production) / SQLite (development) |
-| **AI Parsing** | Zhipu AI (ZAI SDK) — PDF document parsing |
-| **AI Review** | Zhipu AI (ZAI SDK) — Audit & financial analysis |
+| **AI Parsing** | Zhipu AI (ZAI SDK) + LangChain/LangGraph document ingestion agent |
+| **AI Review** | LangChain/LangGraph multi-agent audit + rule-engine fallback |
 | **ORM** | SQLAlchemy-style raw SQL (pymysql / sqlite3) |
 | **Exchange Rates** | Open Exchange Rates API (fallback: cached rates) |
 
@@ -72,6 +72,7 @@ PortaBrasil/
 │   │   ├── core/
 │   │   │   ├── auth.py           # JWT, password hashing, auth decorator
 │   │   │   └── responses.py      # Unified JSON response helpers
+│   │   ├── agents/               # LangChain/LangGraph PDF, audit, finance agents
 │   │   └── routes/
 │   │       ├── health.py          # GET /api/health
 │   │       ├── auth.py           # Auth: login / register / forgot-password / users
@@ -137,7 +138,10 @@ PortaBrasil/
 
 ### 2. PDF Document Upload & Parsing
 - Upload PDF files (max 25 MB) with SHA-256 hash deduplication
-- AI-powered parsing via Zhipu AI (supports LLM / OCR / RULE parser types)
+- LangChain/LangGraph document ingestion agent orchestrates PDF parsing, field validation, business upsert, and optional audit
+- ParserStrategyAgent chooses the initial parser tool and automatically escalates from `lite` to `prime` when parsing quality is low
+- ExtractionQualityAgent evaluates content length and core-field completeness before deciding whether to continue, retry, or mark the document for manual review
+- AI-powered parsing via Zhipu AI parser tool with rule-based extraction fallback
 - Async task polling for parse status
 - Upsert by S/Ref — re-uploading the same document updates existing records
 - Raw text ingestion endpoint for direct text input
@@ -159,8 +163,10 @@ Extracts from parsed PDFs: S/Ref, N/Ref, Invoice No., NF No., customer details (
 - AI financial health review with rule-based checks
 
 ### 6. AI Audit & Financial Review
-- **Business Audit** (`POST /api/ai-review/business/:id/run`): debit/credit balance, fee summary consistency, field completeness, refund anomaly
-- **Financial Review** (`POST /api/ai-review/cost-record/:id/review`): quantity validity, rate reasonability, refund ratio, per-unit cost positivity
+- **Business Audit** (`POST /api/ai-review/business/:id/run`): LangChain/LangGraph supervisor coordinates rule audit and risk-reasoning agents for debit/credit balance, fee consistency, field completeness, and refund anomalies
+- **Audit Planning**: AuditPlannerAgent inspects missing fields, fee details, balance variance, and optional cost data to decide whether LLM risk reasoning is needed
+- **Financial Review** (`POST /api/ai-review/cost-record/:id/review`): finance agents combine deterministic checks with LLM reasoning for quantity validity, exchange-rate reasonability, refund ratio, and per-unit cost positivity
+- **Finance Planning**: FinancePlannerAgent dynamically chooses rule-only review or LLM-assisted analysis based on quantity, FX, refund, and item-detail risks
 - Results: risk level, score, findings with severity, evidence, suggestions
 
 ### 7. Dashboard & Reports

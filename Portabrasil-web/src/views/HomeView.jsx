@@ -140,11 +140,9 @@ export default function HomeView() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-lg font-bold text-gray-800 mb-6 px-2">{t.activity_title}</h3>
         <div className="space-y-0 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
-          {(activities.length ? activities : [
-            { type: 'ALERT', title: t.act1_title, description: t.act1_desc, time: t.act1_time },
-            { type: 'SUCCESS', title: t.act2_title, description: t.act2_desc, time: t.act2_time },
-            { type: 'INFO', title: t.act3_title, description: t.act3_desc, time: t.act3_time },
-          ]).map((item, i) => (
+          {activities.length === 0 ? (
+            <div className="text-sm text-gray-400 px-2">{t.noNotifications}</div>
+          ) : activities.map((item, i) => (
             <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-blue-100 text-blue-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                 {String(item.type || '').toUpperCase() === 'ALERT' ? <AlertTriangle className="w-4 h-4 text-red-500" /> :
