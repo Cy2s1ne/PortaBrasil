@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, ChevronRight, Circle, Download, Edit2, Search, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronRight, Circle, Download, Edit2, RotateCcw, Search, X } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
@@ -23,6 +23,7 @@ export default function ProcessTrackingView() {
   const [progress, setProgress] = useState({ complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [controlLoading, setControlLoading] = useState(false);
 
   const [editingStep, setEditingStep] = useState(null);
   const [editForm, setEditForm] = useState({ status: '', date: '', desc: '' });
@@ -30,6 +31,17 @@ export default function ProcessTrackingView() {
   const [saving, setSaving] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const applyDetailData = (data) => {
+    setSelectedRecord(data?.record || null);
+    setStepsData((data?.steps || []).map((step) => ({
+      id: Number(step.step_no),
+      status: step.status || 'PENDING',
+      date: step.date || '',
+      desc: step.desc || '',
+    })));
+    setProgress(data?.progress || { complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
+  };
 
   const loadList = async () => {
     if (!authToken) return;
@@ -66,14 +78,7 @@ export default function ProcessTrackingView() {
       const data = await fetchJSON(`${API_BASE_URL}/api/process/records/${recordId}`, {
         headers: buildAuthHeaders(authToken),
       });
-      setSelectedRecord(data?.record || null);
-      setStepsData((data?.steps || []).map((step) => ({
-        id: Number(step.step_no),
-        status: step.status || 'PENDING',
-        date: step.date || '',
-        desc: step.desc || '',
-      })));
-      setProgress(data?.progress || { complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
+      applyDetailData(data);
     } catch (err) {
       setDetailError(err.message || 'failed');
     } finally {
@@ -109,14 +114,7 @@ export default function ProcessTrackingView() {
           }),
         }
       );
-      setSelectedRecord(data?.record || selectedRecord);
-      setStepsData((data?.steps || []).map((step) => ({
-        id: Number(step.step_no),
-        status: step.status || 'PENDING',
-        date: step.date || '',
-        desc: step.desc || '',
-      })));
-      setProgress(data?.progress || progress);
+      applyDetailData(data);
       setSaveSuccess(true);
       setTimeout(() => closeEdit(), 900);
       loadList();
@@ -127,10 +125,31 @@ export default function ProcessTrackingView() {
     }
   };
 
+  const controlProcess = async (action) => {
+    if (!selectedRecord || !authToken || controlLoading) return;
+    setControlLoading(true);
+    setDetailError('');
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/process/records/${selectedRecord.id}/control`, {
+        method: 'POST',
+        headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ action }),
+      });
+      applyDetailData(data);
+      loadList();
+    } catch (err) {
+      setDetailError(err.message || 'failed');
+    } finally {
+      setControlLoading(false);
+    }
+  };
+
   const completedCount = Number(progress?.complete_count ?? stepsData.filter((s) => s.status === 'COMPLETE').length);
   const totalCount = Number(progress?.total_count || stepsData.length || 10);
   const progressPercentage = Number(progress?.percentage ?? (totalCount ? Math.round((completedCount / totalCount) * 100) : 0));
   const currentStepNo = progress?.current_step_no || (stepsData.find((s) => s.status !== 'COMPLETE')?.id ?? null);
+  const canAdvance = completedCount < totalCount;
+  const canRollback = completedCount > 0;
 
   const renderStepCard = (step, index, rowLength) => {
     const isComplete = step.status === 'COMPLETE';
@@ -387,14 +406,40 @@ export default function ProcessTrackingView() {
 
       <div className="p-8">
         <div className="bg-gray-50 rounded-xl p-6 mb-10 border border-gray-100">
-          <div className="flex flex-col space-y-4">
-            <div className="flex items-center text-sm">
-              <span className="text-gray-500 w-32">{t.overall_progress}</span>
-              <span className="font-medium text-gray-800">{completedCount}/{totalCount} ({progressPercentage}%)</span>
+          <div className="flex flex-col space-y-5">
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-4 flex-1 min-w-0">
+                <div className="flex items-center text-sm">
+                  <span className="text-gray-500 w-32">{t.overall_progress}</span>
+                  <span className="font-medium text-gray-800">{completedCount}/{totalCount} ({progressPercentage}%)</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <span className="text-gray-500 w-32">{t.current_step_label}</span>
+                  <span className="font-medium text-gray-800">{currentStepNo ? t[`step${currentStepNo}`] : t.all_done}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => controlProcess('ROLLBACK')}
+                  disabled={!canRollback || controlLoading}
+                  className="inline-flex items-center px-3.5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-white hover:text-blue-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-600"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  {t.rollback_step}
+                </button>
+                <button
+                  onClick={() => controlProcess('ADVANCE')}
+                  disabled={!canAdvance || controlLoading}
+                  className="inline-flex items-center px-3.5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                  {controlLoading ? t.fetching_rate : t.advance_step}
+                </button>
+              </div>
             </div>
-            <div className="flex items-center text-sm">
-              <span className="text-gray-500 w-32">{t.current_step_label}</span>
-              <span className="font-medium text-gray-800">{currentStepNo ? t[`step${currentStepNo}`] : t.all_done}</span>
+            <div className="rounded-lg border border-blue-100 bg-white px-4 py-3 text-sm text-gray-600 flex items-center justify-between">
+              <span>{t.process_control_hint}</span>
+              <span className="font-semibold text-blue-600">{canAdvance ? t.next_step_label(t[`step${currentStepNo}`]) : t.all_done}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3.5 mt-2 overflow-hidden border border-gray-200/50">
               <div
@@ -422,5 +467,4 @@ export default function ProcessTrackingView() {
     </div>
   );
 };
-
 

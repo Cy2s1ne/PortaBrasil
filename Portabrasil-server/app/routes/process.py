@@ -31,6 +31,10 @@ def _derive_overall_status(steps: list[dict[str, Any]]) -> str:
     return "PROCESSING"
 
 
+def _frontend_time() -> str:
+    return datetime.now().strftime("%m-%d %H:%M")
+
+
 @bp.get("/api/process/records")
 @jwt_required()
 def list_process_records():
@@ -211,6 +215,74 @@ def update_process_step(record_id: int, step_no: int):
             [record_id],
         )
         overall_status = _derive_overall_status(steps)
+        db.update_by_id(
+            conn,
+            "customs_process_record",
+            record_id,
+            {
+                "overall_status": overall_status,
+                "updated_time": now_str,
+            },
+        )
+
+    return get_process_record(record_id)
+
+
+@bp.post("/api/process/records/<int:record_id>/control")
+@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
+def control_process_record(record_id: int):
+    payload = request.get_json(silent=True) or {}
+    action = str(payload.get("action") or "").strip().upper()
+    if action not in {"ADVANCE", "ROLLBACK"}:
+        return api_response({"error": "action 必须是 ADVANCE 或 ROLLBACK"}, 400)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    db = current_app.config["DB"]
+    with db.connection() as conn:
+        record = db.fetchone(conn, "SELECT id FROM customs_process_record WHERE id = " + db.placeholder, [record_id])
+        if not record:
+            return api_response({"error": "流程记录不存在"}, 404)
+
+        steps = db.fetchall(
+            conn,
+            "SELECT id, step_no, status, completion_time, step_desc FROM customs_process_step "
+            "WHERE process_id = " + db.placeholder + " ORDER BY step_no ASC",
+            [record_id],
+        )
+        if not steps:
+            return api_response({"error": "流程步骤不存在"}, 404)
+
+        target_step = None
+        update_data: dict[str, Any] = {}
+        if action == "ADVANCE":
+            target_step = next((item for item in steps if str(item.get("status") or "").upper() != "COMPLETE"), None)
+            if not target_step:
+                return api_response({"error": "流程已全部完成"}, 409)
+            update_data = {
+                "status": "COMPLETE",
+                "completion_time": payload.get("date") or _frontend_time(),
+                "step_desc": payload.get("desc") or target_step.get("step_desc"),
+                "updated_time": now_str,
+            }
+        else:
+            target_step = next((item for item in reversed(steps) if str(item.get("status") or "").upper() == "COMPLETE"), None)
+            if not target_step:
+                return api_response({"error": "暂无可回退步骤"}, 409)
+            update_data = {
+                "status": "PENDING",
+                "completion_time": None,
+                "step_desc": payload.get("desc") or target_step.get("step_desc"),
+                "updated_time": now_str,
+            }
+
+        db.update_by_id(conn, "customs_process_step", int(target_step["id"]), update_data)
+
+        updated_steps = db.fetchall(
+            conn,
+            "SELECT step_no, status FROM customs_process_step WHERE process_id = " + db.placeholder,
+            [record_id],
+        )
+        overall_status = _derive_overall_status(updated_steps)
         db.update_by_id(
             conn,
             "customs_process_record",
