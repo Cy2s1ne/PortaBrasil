@@ -5,11 +5,21 @@ import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
 import { useAuth } from '../shared/auth/AuthContext';
 
+const PAGE_SIZE = 10;
+const EMPTY_PROCESS_PERMISSIONS = {
+  allowed_step_nos: [],
+  can_advance: false,
+  can_rollback: false,
+  next_step_no: null,
+  rollback_step_no: null,
+  next_allowed_roles: [],
+  rollback_allowed_roles: [],
+};
+
 export default function ProcessTrackingView() {
   const { auth } = useAuth();
   const t = useT();
   const authToken = auth?.access_token;
-  const PAGE_SIZE = 10;
   const [records, setRecords] = useState([]);
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState('');
@@ -21,6 +31,7 @@ export default function ProcessTrackingView() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [stepsData, setStepsData] = useState([]);
   const [progress, setProgress] = useState({ complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
+  const [processPermissions, setProcessPermissions] = useState(EMPTY_PROCESS_PERMISSIONS);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
   const [controlLoading, setControlLoading] = useState(false);
@@ -41,6 +52,7 @@ export default function ProcessTrackingView() {
       desc: step.desc || '',
     })));
     setProgress(data?.progress || { complete_count: 0, total_count: 10, percentage: 0, current_step_no: null });
+    setProcessPermissions(data?.control_permissions || EMPTY_PROCESS_PERMISSIONS);
   };
 
   const loadList = async () => {
@@ -148,11 +160,13 @@ export default function ProcessTrackingView() {
   const totalCount = Number(progress?.total_count || stepsData.length || 10);
   const progressPercentage = Number(progress?.percentage ?? (totalCount ? Math.round((completedCount / totalCount) * 100) : 0));
   const currentStepNo = progress?.current_step_no || (stepsData.find((s) => s.status !== 'COMPLETE')?.id ?? null);
-  const canAdvance = completedCount < totalCount;
-  const canRollback = completedCount > 0;
+  const allowedStepNos = processPermissions?.allowed_step_nos || [];
+  const canAdvance = completedCount < totalCount && Boolean(processPermissions?.can_advance);
+  const canRollback = completedCount > 0 && Boolean(processPermissions?.can_rollback);
 
   const renderStepCard = (step, index, rowLength) => {
     const isComplete = step.status === 'COMPLETE';
+    const canEditStep = allowedStepNos.includes(step.id);
     return (
       <React.Fragment key={step.id}>
         <div className={`relative flex flex-col items-center p-5 rounded-xl border-2 w-[200px] h-[200px] text-center shrink-0 transition-all duration-300 hover:shadow-md ${
@@ -160,7 +174,9 @@ export default function ProcessTrackingView() {
         }`}>
           <button
             onClick={() => openEdit(step)}
-            className="absolute top-2 right-2 p-1 rounded-md text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+            disabled={!canEditStep}
+            title={canEditStep ? t.edit_step_title : t.process_no_permission}
+            className="absolute top-2 right-2 p-1 rounded-md text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:hover:text-gray-300 disabled:hover:bg-transparent"
           >
             <Edit2 className="w-3.5 h-3.5" />
           </button>
@@ -439,7 +455,9 @@ export default function ProcessTrackingView() {
             </div>
             <div className="rounded-lg border border-blue-100 bg-white px-4 py-3 text-sm text-gray-600 flex items-center justify-between">
               <span>{t.process_control_hint}</span>
-              <span className="font-semibold text-blue-600">{canAdvance ? t.next_step_label(t[`step${currentStepNo}`]) : t.all_done}</span>
+              <span className="font-semibold text-blue-600">
+                {!currentStepNo ? t.all_done : canAdvance ? t.next_step_label(t[`step${currentStepNo}`]) : t.process_no_permission}
+              </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3.5 mt-2 overflow-hidden border border-gray-200/50">
               <div
@@ -467,4 +485,3 @@ export default function ProcessTrackingView() {
     </div>
   );
 };
-

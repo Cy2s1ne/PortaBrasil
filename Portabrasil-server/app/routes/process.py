@@ -1,13 +1,28 @@
 from datetime import datetime
 from typing import Any
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, current_app, g, request
 
 from app.core.auth import jwt_required
 from app.core.responses import api_response
 from services import sync_missing_process_records
 
 bp = Blueprint("process_api", __name__)
+
+PROCESS_CONTROL_ROLES = ("SUPER_ADMIN", "ADMIN", "CUSTOMS", "FINANCE", "FORWARDER")
+ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
+STEP_ROLE_MAP = {
+    1: ("FORWARDER",),
+    2: ("CUSTOMS",),
+    3: ("CUSTOMS",),
+    4: ("FINANCE",),
+    5: ("FINANCE",),
+    6: ("CUSTOMS",),
+    7: ("CUSTOMS",),
+    8: ("FORWARDER",),
+    9: ("FORWARDER",),
+    10: ("FORWARDER",),
+}
 
 
 def _map_status_to_frontend(status: str) -> str:
@@ -33,6 +48,35 @@ def _derive_overall_status(steps: list[dict[str, Any]]) -> str:
 
 def _frontend_time() -> str:
     return datetime.now().strftime("%m-%d %H:%M")
+
+
+def _current_roles() -> set[str]:
+    return set(g.current_user.get("roles") or [])
+
+
+def _can_control_step(step_no: int) -> bool:
+    roles = _current_roles()
+    if roles.intersection(ADMIN_ROLES):
+        return True
+    return bool(roles.intersection(STEP_ROLE_MAP.get(step_no, ())))
+
+
+def _build_control_permissions(steps: list[dict[str, Any]]) -> dict[str, Any]:
+    next_step = next((item for item in steps if str(item.get("status") or "").upper() != "COMPLETE"), None)
+    rollback_step = next((item for item in reversed(steps) if str(item.get("status") or "").upper() == "COMPLETE"), None)
+    next_step_no = int(next_step["step_no"]) if next_step else None
+    rollback_step_no = int(rollback_step["step_no"]) if rollback_step else None
+
+    return {
+        "allowed_step_nos": [step_no for step_no in sorted(STEP_ROLE_MAP) if _can_control_step(step_no)],
+        "step_role_map": {str(step_no): list(roles) for step_no, roles in STEP_ROLE_MAP.items()},
+        "next_step_no": next_step_no,
+        "rollback_step_no": rollback_step_no,
+        "next_allowed_roles": list(STEP_ROLE_MAP.get(next_step_no, ())) if next_step_no else [],
+        "rollback_allowed_roles": list(STEP_ROLE_MAP.get(rollback_step_no, ())) if rollback_step_no else [],
+        "can_advance": bool(next_step_no and _can_control_step(next_step_no)),
+        "can_rollback": bool(rollback_step_no and _can_control_step(rollback_step_no)),
+    }
 
 
 @bp.get("/api/process/records")
@@ -164,12 +208,13 @@ def get_process_record(record_id: int):
                 "percentage": round((complete_count / total_steps) * 100) if total_steps else 0,
                 "current_step_no": int(current_step["step_no"]) if current_step else None,
             },
+            "control_permissions": _build_control_permissions(steps),
         }
     )
 
 
 @bp.put("/api/process/records/<int:record_id>/steps/<int:step_no>")
-@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
+@jwt_required(*PROCESS_CONTROL_ROLES)
 def update_process_step(record_id: int, step_no: int):
     if step_no < 1 or step_no > 10:
         return api_response({"error": "step_no 取值范围必须是 1-10"}, 400)
@@ -196,6 +241,15 @@ def update_process_step(record_id: int, step_no: int):
         )
         if not step:
             return api_response({"error": "流程步骤不存在"}, 404)
+        if not _can_control_step(step_no):
+            return api_response(
+                {
+                    "error": "当前角色无权控制该流程步骤",
+                    "step_no": step_no,
+                    "allowed_roles": list(STEP_ROLE_MAP.get(step_no, ())),
+                },
+                403,
+            )
 
         db.update_by_id(
             conn,
@@ -229,7 +283,7 @@ def update_process_step(record_id: int, step_no: int):
 
 
 @bp.post("/api/process/records/<int:record_id>/control")
-@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
+@jwt_required(*PROCESS_CONTROL_ROLES)
 def control_process_record(record_id: int):
     payload = request.get_json(silent=True) or {}
     action = str(payload.get("action") or "").strip().upper()
@@ -258,6 +312,16 @@ def control_process_record(record_id: int):
             target_step = next((item for item in steps if str(item.get("status") or "").upper() != "COMPLETE"), None)
             if not target_step:
                 return api_response({"error": "流程已全部完成"}, 409)
+            target_step_no = int(target_step["step_no"])
+            if not _can_control_step(target_step_no):
+                return api_response(
+                    {
+                        "error": "当前角色无权推进下一流程步骤",
+                        "step_no": target_step_no,
+                        "allowed_roles": list(STEP_ROLE_MAP.get(target_step_no, ())),
+                    },
+                    403,
+                )
             update_data = {
                 "status": "COMPLETE",
                 "completion_time": payload.get("date") or _frontend_time(),
@@ -268,6 +332,16 @@ def control_process_record(record_id: int):
             target_step = next((item for item in reversed(steps) if str(item.get("status") or "").upper() == "COMPLETE"), None)
             if not target_step:
                 return api_response({"error": "暂无可回退步骤"}, 409)
+            target_step_no = int(target_step["step_no"])
+            if not _can_control_step(target_step_no):
+                return api_response(
+                    {
+                        "error": "当前角色无权回退上一流程步骤",
+                        "step_no": target_step_no,
+                        "allowed_roles": list(STEP_ROLE_MAP.get(target_step_no, ())),
+                    },
+                    403,
+                )
             update_data = {
                 "status": "PENDING",
                 "completion_time": None,
