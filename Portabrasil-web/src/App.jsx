@@ -24,7 +24,7 @@ function RoleRoute({ canAccess, children }) {
 }
 
 function AppRoutes({ lang, onLangChange }) {
-  const { canAccessUpload, canAccessCost, canAccessAudit } = useAuth();
+  const { canAccessUpload, canAccessCost, canAccessAudit, canAccessReport } = useAuth();
 
   return (
     <Routes>
@@ -42,7 +42,7 @@ function AppRoutes({ lang, onLangChange }) {
         <Route path="process" element={<ProcessTrackingView />} />
         <Route path="cost" element={<RoleRoute canAccess={canAccessCost}><CostAnalysisView /></RoleRoute>} />
         <Route path="audit" element={<RoleRoute canAccess={canAccessAudit}><AuditReviewView /></RoleRoute>} />
-        <Route path="report" element={<ReportView />} />
+        <Route path="report" element={<RoleRoute canAccess={canAccessReport}><ReportView /></RoleRoute>} />
         <Route path="admin" element={<AdminRoute><AdminManagementView /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

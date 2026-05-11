@@ -29,7 +29,7 @@ const LANG_LABELS = { zh: '中文', en: 'EN', pt: 'PT' };
 const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=e2e8f0';
 
 export default function AppLayout({ lang, onLangChange }) {
-  const { auth, currentUserName, canManageAdmins, canAccessUpload, canAccessCost, canAccessAudit, logout } = useAuth();
+  const { auth, currentUserName, canManageAdmins, canAccessUpload, canAccessCost, canAccessAudit, canAccessReport, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
@@ -58,7 +58,7 @@ export default function AppLayout({ lang, onLangChange }) {
     { key: 'process', label: t.nav_process, icon: MapIcon, path: '/process' },
     ...(canAccessCost ? [{ key: 'cost', label: t.nav_cost, icon: PieChart, path: '/cost' }] : []),
     ...(canAccessAudit ? [{ key: 'audit', label: t.nav_audit, icon: ClipboardCheck, path: '/audit' }] : []),
-    { key: 'report', label: t.nav_report, icon: BarChart2, path: '/report' },
+    ...(canAccessReport ? [{ key: 'report', label: t.nav_report, icon: BarChart2, path: '/report' }] : []),
     ...(canManageAdmins ? [{ key: 'admin', label: t.nav_admin, icon: ShieldCheck, path: '/admin' }] : []),
   ];
 
@@ -114,7 +114,7 @@ export default function AppLayout({ lang, onLangChange }) {
 
   useEffect(() => {
     const query = globalSearchInput.trim();
-    if (!authToken || query.length < 2) {
+    if (!authToken || !canAccessReport || query.length < 2) {
       setGlobalSearchResults([]);
       setGlobalSearchLoading(false);
       setGlobalSearchError('');
@@ -144,7 +144,7 @@ export default function AppLayout({ lang, onLangChange }) {
       active = false;
       window.clearTimeout(timeoutId);
     };
-  }, [authToken, globalSearchInput]);
+  }, [authToken, canAccessReport, globalSearchInput]);
 
   const submitGlobalSearch = () => {
     const query = globalSearchInput.trim();

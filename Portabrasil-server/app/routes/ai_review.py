@@ -7,6 +7,7 @@ from app.core.responses import api_response
 from app.services.audit_finance_service import run_audit_review, run_finance_review
 
 bp = Blueprint("ai_review_api", __name__)
+AI_REVIEW_ROLES = ("SUPER_ADMIN", "ADMIN", "FINANCE")
 
 
 def _loads_json(raw):
@@ -19,7 +20,7 @@ def _loads_json(raw):
 
 
 @bp.post("/api/audit/business/<int:business_id>/run")
-@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS", "FINANCE")
+@jwt_required(*AI_REVIEW_ROLES)
 def create_audit_run(business_id: int):
     payload = request.get_json(silent=True) or {}
     cost_record_id_raw = payload.get("cost_record_id")
@@ -47,7 +48,7 @@ def create_audit_run(business_id: int):
 
 
 @bp.get("/api/audit/runs")
-@jwt_required()
+@jwt_required(*AI_REVIEW_ROLES)
 def list_audit_runs():
     db = current_app.config["DB"]
     try:
@@ -117,7 +118,7 @@ def list_audit_runs():
 
 
 @bp.get("/api/audit/runs/<int:run_id>")
-@jwt_required()
+@jwt_required(*AI_REVIEW_ROLES)
 def get_audit_run(run_id: int):
     db = current_app.config["DB"]
     with db.connection() as conn:
@@ -147,7 +148,7 @@ def get_audit_run(run_id: int):
 
 
 @bp.post("/api/finance/cost-records/<int:cost_record_id>/review")
-@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
+@jwt_required(*AI_REVIEW_ROLES)
 def create_finance_review(cost_record_id: int):
     db = current_app.config["DB"]
     try:
@@ -161,7 +162,7 @@ def create_finance_review(cost_record_id: int):
 
 
 @bp.get("/api/finance/reviews")
-@jwt_required()
+@jwt_required(*AI_REVIEW_ROLES)
 def list_finance_reviews():
     db = current_app.config["DB"]
     try:
@@ -228,7 +229,7 @@ def list_finance_reviews():
 
 
 @bp.get("/api/finance/reviews/<int:review_id>")
-@jwt_required()
+@jwt_required(*AI_REVIEW_ROLES)
 def get_finance_review(review_id: int):
     db = current_app.config["DB"]
     with db.connection() as conn:
