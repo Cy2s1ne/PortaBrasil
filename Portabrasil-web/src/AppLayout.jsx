@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart2,
@@ -40,6 +40,17 @@ export default function AppLayout({ lang, onLangChange }) {
   const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' });
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [globalSearchInput, setGlobalSearchInput] = useState('');
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [globalSearchError, setGlobalSearchError] = useState('');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
+  const searchRef = useRef(null);
+  const notificationsRef = useRef(null);
 
   const menuItems = [
     { key: 'home', label: t.nav_home, icon: Home, path: '/' },
@@ -62,6 +73,98 @@ export default function AppLayout({ lang, onLangChange }) {
   };
 
   const activeLabel = routeLabels[location.pathname] || '';
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setGlobalSearchOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    if (!authToken) return;
+
+    let active = true;
+    setNotificationsLoading(true);
+    setNotificationsError('');
+    fetchJSON(`${API_BASE_URL}/api/dashboard/overview`, {
+      headers: buildAuthHeaders(authToken),
+    })
+      .then((data) => {
+        if (active) setNotifications(data?.activities || []);
+      })
+      .catch((err) => {
+        if (active) setNotificationsError(err.message || 'failed');
+      })
+      .finally(() => {
+        if (active) setNotificationsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authToken]);
+
+  useEffect(() => {
+    const query = globalSearchInput.trim();
+    if (!authToken || query.length < 2) {
+      setGlobalSearchResults([]);
+      setGlobalSearchLoading(false);
+      setGlobalSearchError('');
+      return undefined;
+    }
+
+    let active = true;
+    const timeoutId = window.setTimeout(() => {
+      setGlobalSearchLoading(true);
+      setGlobalSearchError('');
+      const params = new URLSearchParams({ q: query, limit: '5', offset: '0' });
+      fetchJSON(`${API_BASE_URL}/api/reports/records?${params.toString()}`, {
+        headers: buildAuthHeaders(authToken),
+      })
+        .then((data) => {
+          if (active) setGlobalSearchResults(data?.items || []);
+        })
+        .catch((err) => {
+          if (active) setGlobalSearchError(err.message || 'failed');
+        })
+        .finally(() => {
+          if (active) setGlobalSearchLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [authToken, globalSearchInput]);
+
+  const submitGlobalSearch = () => {
+    const query = globalSearchInput.trim();
+    if (!query) return;
+    setGlobalSearchOpen(false);
+    navigate(`/report?q=${encodeURIComponent(query)}`);
+  };
+
+  const openSearchResult = (record) => {
+    const query = record?.bl || globalSearchInput.trim();
+    if (!query) return;
+    setGlobalSearchInput(query);
+    setGlobalSearchOpen(false);
+    navigate(`/report?q=${encodeURIComponent(query)}`);
+  };
+
+  const toggleNotifications = () => {
+    setNotificationsOpen((open) => !open);
+    setProfileMenuOpen(false);
+  };
 
   const openPasswordModal = () => {
     setPasswordForm({ old_password: '', new_password: '', confirm_password: '' });
@@ -148,13 +251,62 @@ export default function AppLayout({ lang, onLangChange }) {
               <span className="font-medium text-gray-800">{activeLabel}</span>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="relative hidden md:block">
+              <div ref={searchRef} className="relative hidden md:block">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
+                  value={globalSearchInput}
+                  onChange={(e) => {
+                    setGlobalSearchInput(e.target.value);
+                    setGlobalSearchOpen(true);
+                  }}
+                  onFocus={() => setGlobalSearchOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitGlobalSearch();
+                    if (e.key === 'Escape') setGlobalSearchOpen(false);
+                  }}
                   placeholder={t.globalSearch}
                   className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 w-48 transition-all focus:w-64"
                 />
+                {globalSearchOpen && globalSearchInput.trim() ? (
+                  <div className="absolute right-0 top-10 w-80 rounded-xl border border-gray-100 bg-white shadow-xl z-30 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="text-sm font-semibold text-gray-800">{t.globalSearchResults}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{t.globalSearchHint}</div>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {globalSearchLoading ? (
+                        <div className="px-4 py-5 text-sm text-gray-500">{t.fetching_rate}</div>
+                      ) : globalSearchError ? (
+                        <div className="px-4 py-5 text-sm text-amber-600">{globalSearchError}</div>
+                      ) : globalSearchResults.length ? (
+                        globalSearchResults.map((record) => (
+                          <button
+                            key={record.id}
+                            type="button"
+                            onClick={() => openSearchResult(record)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-50 last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm font-semibold text-gray-800 truncate">{record.bl || '-'}</span>
+                              <span className="text-[11px] text-gray-400 shrink-0">{record.declaration_date || ''}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 truncate">{record.goods_desc || record.port || '-'}</div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-5 text-sm text-gray-400">{t.noSearchResults}</div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={submitGlobalSearch}
+                      className="w-full px-4 py-3 text-left text-sm font-medium text-blue-600 hover:bg-blue-50 border-t border-gray-100"
+                    >
+                      {t.viewAllResults}
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               <button
@@ -168,10 +320,52 @@ export default function AppLayout({ lang, onLangChange }) {
                 <span className="text-xs font-semibold">{LANG_LABELS[lang]}</span>
               </button>
 
-              <button className="text-gray-400 hover:text-gray-600 transition-colors relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-              </button>
+              <div ref={notificationsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={toggleNotifications}
+                  aria-label={t.notifications_title}
+                  className="text-gray-400 hover:text-gray-600 transition-colors relative p-1 rounded-lg hover:bg-gray-50"
+                >
+                  <Bell className="w-5 h-5" />
+                  {notifications.some((item) => String(item.type || '').toUpperCase() === 'ALERT') ? (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                  ) : null}
+                </button>
+                {notificationsOpen ? (
+                  <div className="absolute right-0 top-10 w-80 rounded-xl border border-gray-100 bg-white shadow-xl z-30 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-800">{t.notifications_title}</div>
+                      <span className="text-xs text-gray-400">{notifications.length}</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notificationsLoading ? (
+                        <div className="px-4 py-5 text-sm text-gray-500">{t.fetching_rate}</div>
+                      ) : notificationsError ? (
+                        <div className="px-4 py-5 text-sm text-amber-600">{notificationsError}</div>
+                      ) : notifications.length ? (
+                        notifications.map((item) => {
+                          const isAlert = String(item.type || '').toUpperCase() === 'ALERT';
+                          return (
+                            <div key={item.id || `${item.title}-${item.time}`} className="px-4 py-3 border-b border-gray-50 last:border-b-0">
+                              <div className="flex items-start gap-3">
+                                <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${isAlert ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-gray-800 truncate">{item.title || '-'}</div>
+                                  <div className="text-xs text-gray-500 mt-1 leading-relaxed">{item.description || '-'}</div>
+                                  <div className="text-[11px] text-gray-400 mt-1">{item.time || ''}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="px-4 py-5 text-sm text-gray-400">{t.noNotifications}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
               <button
                 onClick={() => {

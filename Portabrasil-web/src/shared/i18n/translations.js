@@ -2,7 +2,7 @@ export const TRANSLATIONS = {
   zh: {
     appName: '巴西海关报关系统',
     nav_home: '首页', nav_upload: '报关单据上传', nav_process: '流程跟踪', nav_cost: '成本分析', nav_audit: '审计复核', nav_report: '报表分析', nav_admin: '用户管理',
-    system: '系统', globalSearch: '全局搜索...', admin: '超级管理员',
+    system: '系统', globalSearch: '全局搜索...', globalSearchResults: '搜索结果', globalSearchHint: '按 Enter 查看全部结果', noSearchResults: '未找到匹配记录', viewAllResults: '查看全部搜索结果', notifications_title: '通知', noNotifications: '暂无通知', admin: '超级管理员',
     needHelp: '需要帮助？', helpDesc: '查看巴西清关操作指南', contactSupport: '联系客服',
     welcome: (name) => (name ? `欢迎回来，${name}！` : '欢迎回来！'),
     welcomeSub: (c, i) => `今日有 ${c} 个集装箱需要处理，${i} 个海关查验通知。`,
@@ -74,7 +74,7 @@ export const TRANSLATIONS = {
   en: {
     appName: 'Brazil Customs System',
     nav_home: 'Home', nav_upload: 'Customs Document Upload', nav_process: 'Process Tracking', nav_cost: 'Cost Analysis', nav_audit: 'Audit Review', nav_report: 'Reports', nav_admin: 'User Management',
-    system: 'System', globalSearch: 'Search...', admin: 'Super Admin',
+    system: 'System', globalSearch: 'Search...', globalSearchResults: 'Search Results', globalSearchHint: 'Press Enter to view all results', noSearchResults: 'No matching records', viewAllResults: 'View all search results', notifications_title: 'Notifications', noNotifications: 'No notifications', admin: 'Super Admin',
     needHelp: 'Need Help?', helpDesc: 'View Brazil Customs Guide', contactSupport: 'Contact Support',
     welcome: (name) => (name ? `Welcome back, ${name}!` : 'Welcome back!'),
     welcomeSub: (c, i) => `Today: ${c} containers to process, ${i} customs inspection notice(s).`,
@@ -146,7 +146,7 @@ export const TRANSLATIONS = {
   pt: {
     appName: 'Sistema Aduaneiro Brasil',
     nav_home: 'Início', nav_upload: 'Upload de Documentos Aduaneiros', nav_process: 'Rastreamento', nav_cost: 'Análise de Custos', nav_audit: 'Auditoria', nav_report: 'Relatórios', nav_admin: 'Gestão de Usuários',
-    system: 'Sistema', globalSearch: 'Buscar...', admin: 'Super Administrador',
+    system: 'Sistema', globalSearch: 'Buscar...', globalSearchResults: 'Resultados da Busca', globalSearchHint: 'Pressione Enter para ver todos', noSearchResults: 'Nenhum registro encontrado', viewAllResults: 'Ver todos os resultados', notifications_title: 'Notificações', noNotifications: 'Nenhuma notificação', admin: 'Super Administrador',
     needHelp: 'Precisa de Ajuda?', helpDesc: 'Ver guia de desembaraço', contactSupport: 'Suporte',
     welcome: (name) => (name ? `Bem-vindo de volta, ${name}!` : 'Bem-vindo de volta!'),
     welcomeSub: (c, i) => `Hoje: ${c} contêineres para processar, ${i} aviso(s) de inspeção.`,

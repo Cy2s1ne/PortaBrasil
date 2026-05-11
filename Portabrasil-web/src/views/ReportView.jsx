@@ -1,52 +1,68 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
 import { useAuth } from '../shared/auth/AuthContext';
 
+const PAGE_SIZE = 10;
+
 export default function ReportView() {
   const { auth } = useAuth();
   const t = useT();
   const authToken = auth?.access_token;
-  const PAGE_SIZE = 10;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') || '';
+  const urlQuery = searchParams.get('q') || '';
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
-  const [searchInput, setSearchInput] = useState('');
-  const [query, setQuery] = useState('');
+  const [searchInput, setSearchInput] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
+  const [syncedUrlQuery, setSyncedUrlQuery] = useState(initialQuery);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  useEffect(() => {
+  if (urlQuery !== syncedUrlQuery) {
+    setSyncedUrlQuery(urlQuery);
+    setSearchInput(urlQuery);
+    setQuery(urlQuery);
+    setPage(1);
+  }
+
+  const applySearch = () => {
+    const nextQuery = searchInput.trim();
+    setPage(1);
+    setQuery(nextQuery);
+    setSearchParams(nextQuery ? { q: nextQuery } : {});
+  };
+
+  const loadRows = useCallback(async () => {
     if (!authToken) return;
-    let active = true;
     const offset = (page - 1) * PAGE_SIZE;
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
     if (query.trim()) params.set('q', query.trim());
     setLoading(true);
     setError('');
-    fetchJSON(`${API_BASE_URL}/api/reports/records?${params.toString()}`, {
-      headers: buildAuthHeaders(authToken),
-    })
-      .then((data) => {
-        if (!active) return;
-        setRows(data?.items || []);
-        setTotal(Number(data?.total || 0));
-      })
-      .catch((err) => {
-        if (active) setError(err.message || 'failed');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/reports/records?${params.toString()}`, {
+        headers: buildAuthHeaders(authToken),
       });
-
-    return () => {
-      active = false;
-    };
+      setRows(data?.items || []);
+      setTotal(Number(data?.total || 0));
+    } catch (err) {
+      setError(err.message || 'failed');
+    } finally {
+      setLoading(false);
+    }
   }, [authToken, page, query]);
+
+  useEffect(() => {
+    loadRows();
+  }, [loadRows]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -61,8 +77,7 @@ export default function ReportView() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  setPage(1);
-                  setQuery(searchInput);
+                  applySearch();
                 }
               }}
               placeholder={t.search_placeholder}
@@ -70,10 +85,7 @@ export default function ReportView() {
             />
           </div>
           <button
-            onClick={() => {
-              setPage(1);
-              setQuery(searchInput);
-            }}
+            onClick={applySearch}
             className="px-4 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             {t.filter}
@@ -141,5 +153,3 @@ export default function ReportView() {
     </div>
   );
 };
-
-
