@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/api/auth/login",
+  "status": null,
+  "elapsed_ms": 0.09,
+  "body": {
+    "error": "<urlopen error [Errno 1] Operation not permitted>"
+  },
+  "passed": false
+}

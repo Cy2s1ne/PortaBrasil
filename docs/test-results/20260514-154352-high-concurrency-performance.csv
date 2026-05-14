@@ -1,0 +1,7 @@
+name,method,path,count,concurrency,success,failure,success_rate,avg_ms,min_ms,p95_ms,max_ms,total_elapsed_ms
+健康检查,GET,/api/health,50,10,50,0,100.0,1.07,0.4,2.05,2.38,94.72
+业务列表查询,GET,/api/business?limit=10,50,100,50,0,100.0,387.42,238.19,530.07,616.66,682.12
+仪表盘统计,GET,/api/dashboard/overview,50,100,50,0,100.0,12786.05,866.01,24377.79,25230.5,25327.13
+成本计算,POST,/api/cost/calculate,50,100,50,0,100.0,184.98,149.14,225.34,227.45,255.86
+业务查询并发,GET,/api/business?limit=10,50,100,50,0,100.0,412.82,252.77,520.51,580.24,620.26
+仪表盘并发,GET,/api/dashboard/overview,50,100,50,0,100.0,12950.6,1024.83,24007.45,25091.81,25187.74

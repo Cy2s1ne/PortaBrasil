@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "path": "/api/auth/login",
+  "status": 0,
+  "elapsed_ms": 0.07,
+  "body": {
+    "error": "curl: (7) Failed to connect to 127.0.0.1 port 5001 after 0 ms: Couldn't connect to server"
+  },
+  "passed": false
+}

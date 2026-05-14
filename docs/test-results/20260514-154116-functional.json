@@ -1,0 +1,1966 @@
+[
+  {
+    "id": "F-01",
+    "module": "健康检查",
+    "item": "后端服务与数据库状态",
+    "method": "GET",
+    "path": "/api/health",
+    "status": 200,
+    "elapsed_ms": 6.44,
+    "passed": true,
+    "summary": "status=ok, database=mysql",
+    "raw": {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "elapsed_ms": 6.44,
+      "body": {
+        "database": "mysql",
+        "status": "ok"
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-02",
+    "module": "用户认证",
+    "item": "管理员登录",
+    "method": "POST",
+    "path": "/api/auth/login",
+    "status": 200,
+    "elapsed_ms": 113.33,
+    "passed": true,
+    "summary": "login_success=True, user=admin, roles=SUPER_ADMIN, token=<redacted>",
+    "raw": {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "elapsed_ms": 113.33,
+      "body": {
+        "access_token": "<redacted>",
+        "expires_in": 7200,
+        "token_type": "<redacted>",
+        "user": {
+          "created_at": "2026-04-16 06:43:28",
+          "email": "admin@portabrasil.local",
+          "id": 1,
+          "phone": null,
+          "real_name": "超级管理员",
+          "roles": [
+            "SUPER_ADMIN"
+          ],
+          "status": 1,
+          "updated_at": "2026-05-11 15:54:20",
+          "username": "admin"
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-03",
+    "module": "用户认证",
+    "item": "错误密码登录拦截",
+    "method": "POST",
+    "path": "/api/auth/login",
+    "status": 401,
+    "elapsed_ms": 175.18,
+    "passed": true,
+    "summary": "账号或密码错误",
+    "raw": {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 401,
+      "elapsed_ms": 175.18,
+      "body": {
+        "error": "账号或密码错误"
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-04",
+    "module": "用户认证",
+    "item": "获取当前用户信息",
+    "method": "GET",
+    "path": "/api/auth/me",
+    "status": 200,
+    "elapsed_ms": 110.72,
+    "passed": true,
+    "summary": "{'user': {'created_at': '2026-04-16 06:43:28', 'email': 'admin@portabrasil.local', 'id': 1, 'phone': None, 'real_name': ",
+    "raw": {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "elapsed_ms": 110.72,
+      "body": {
+        "user": {
+          "created_at": "2026-04-16 06:43:28",
+          "email": "admin@portabrasil.local",
+          "id": 1,
+          "phone": null,
+          "real_name": "超级管理员",
+          "roles": [
+            "SUPER_ADMIN"
+          ],
+          "status": 1,
+          "updated_at": "2026-05-11 15:54:20",
+          "username": "admin"
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-05",
+    "module": "文本入库",
+    "item": "原始文本解析入库",
+    "method": "POST",
+    "path": "/api/documents/from-text",
+    "status": 201,
+    "elapsed_ms": 736.32,
+    "passed": true,
+    "summary": "business_id=4, s_ref=TEST/2026/20260514154119",
+    "raw": {
+      "method": "POST",
+      "path": "/api/documents/from-text",
+      "status": 201,
+      "elapsed_ms": 736.32,
+      "body": {
+        "business": {
+          "arrival_date": "2026-05-13",
+          "balance_amount": "0.00",
+          "balance_direction": "PAYABLE",
+          "business_type": "IMPORT",
+          "cargo_desc": "Test cargo",
+          "cif_amount": "11200.00",
+          "cif_brl_amount": "57344.00",
+          "cif_currency": "USD",
+          "created_time": "2026-05-14 07:41:20",
+          "customer_address": "Rua Teste 100",
+          "customer_city": "Sao Paulo",
+          "customer_name": "Cliente Teste Automatizado",
+          "customer_state": "SP",
+          "customer_tax_no": "12.345.678/0001-90",
+          "customer_zip_code": "01310-100",
+          "customs_clearance_date": "2026-05-14",
+          "data_status": "DRAFT",
+          "destination": "Santos",
+          "di_duimp_due": "26BRTEST001-1",
+          "document_no": "20260514154119",
+          "dollar_rate": "5.120000",
+          "euro_rate": "5.530000",
+          "fee_items": [
+            {
+              "business_id": 4,
+              "created_time": "2026-05-14 07:41:20",
+              "credit_amount": null,
+              "debit_amount": "200.00",
+              "fee_code": "001",
+              "fee_date": "2026-05-14",
+              "fee_name": "Taxa SISCOMEX",
+              "id": 67,
+              "line_no": 1,
+              "raw_text": "14.05.2026 001 Taxa SISCOMEX 200,00"
+            },
+            {
+              "business_id": 4,
+              "created_time": "2026-05-14 07:41:20",
+              "credit_amount": null,
+              "debit_amount": "300.00",
+              "fee_code": "002",
+              "fee_date": "2026-05-14",
+              "fee_name": "AFRMM",
+              "id": 68,
+              "line_no": 2,
+              "raw_text": "14.05.2026 002 AFRMM 300,00"
+            },
+            {
+              "business_id": 4,
+              "created_time": "2026-05-14 07:41:20",
+              "credit_amount": "500.00",
+              "debit_amount": null,
+              "fee_code": "200",
+              "fee_date": "2026-05-14",
+              "fee_name": "ADIANTAMENTO CLIENTE",
+              "id": 69,
+              "line_no": 3,
+              "raw_text": "14.05.2026 200 ADIANTAMENTO CLIENTE 500,00"
+            }
+          ],
+          "fob_amount": "57344.00",
+          "fob_currency": "R$",
+          "freight_amount": "1200.00",
+          "freight_currency": "USD",
+          "gross_weight": "1234.560",
+          "hawb_hbl": "HBL-TEST-001",
+          "id": 4,
+          "invoice_no": "INV-TEST-001",
+          "issuer_name": "PortaBrasil Logistica Ltda",
+          "issuer_tax_no": "41.222.333/0001-44",
+          "loading_date": "2026-05-14",
+          "mawb_mbl": "MBL-TEST-001",
+          "n_ref": "PROC-20260514154119",
+          "nf_no": "NF-TEST-001",
+          "process_no": "PROC-20260514154119",
+          "registration_date": "2026-05-14",
+          "s_ref": "TEST/2026/20260514154119",
+          "source_file_id": null,
+          "source_page_no": 1,
+          "total_credit": "500.00",
+          "total_debit": "500.00",
+          "trade_company": "Test Supplier Ltd",
+          "updated_time": "2026-05-14 07:41:20",
+          "vessel_flight_name": "TEST VESSEL",
+          "volume_count": null
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-06",
+    "module": "业务查询",
+    "item": "按 S/Ref 查询业务列表",
+    "method": "GET",
+    "path": "/api/business?q=TEST%2F2026%2F20260514154119",
+    "status": 200,
+    "elapsed_ms": 288.1,
+    "passed": true,
+    "summary": "total=1, items=1",
+    "raw": {
+      "method": "GET",
+      "path": "/api/business?q=TEST%2F2026%2F20260514154119",
+      "status": 200,
+      "elapsed_ms": 288.1,
+      "body": {
+        "items": [
+          {
+            "arrival_date": "2026-05-13",
+            "balance_amount": "0.00",
+            "balance_direction": "PAYABLE",
+            "business_type": "IMPORT",
+            "cargo_desc": "Test cargo",
+            "cif_amount": "11200.00",
+            "cif_brl_amount": "57344.00",
+            "cif_currency": "USD",
+            "created_time": "2026-05-14 07:41:20",
+            "customer_address": "Rua Teste 100",
+            "customer_city": "Sao Paulo",
+            "customer_name": "Cliente Teste Automatizado",
+            "customer_state": "SP",
+            "customer_tax_no": "12.345.678/0001-90",
+            "customer_zip_code": "01310-100",
+            "customs_clearance_date": "2026-05-14",
+            "data_status": "DRAFT",
+            "destination": "Santos",
+            "di_duimp_due": "26BRTEST001-1",
+            "document_no": "20260514154119",
+            "dollar_rate": "5.120000",
+            "euro_rate": "5.530000",
+            "fob_amount": "57344.00",
+            "fob_currency": "R$",
+            "freight_amount": "1200.00",
+            "freight_currency": "USD",
+            "gross_weight": "1234.560",
+            "hawb_hbl": "HBL-TEST-001",
+            "id": 4,
+            "invoice_no": "INV-TEST-001",
+            "issuer_name": "PortaBrasil Logistica Ltda",
+            "issuer_tax_no": "41.222.333/0001-44",
+            "loading_date": "2026-05-14",
+            "mawb_mbl": "MBL-TEST-001",
+            "n_ref": "PROC-20260514154119",
+            "nf_no": "NF-TEST-001",
+            "process_no": "PROC-20260514154119",
+            "registration_date": "2026-05-14",
+            "s_ref": "TEST/2026/20260514154119",
+            "source_file_id": null,
+            "source_page_no": 1,
+            "total_credit": "500.00",
+            "total_debit": "500.00",
+            "trade_company": "Test Supplier Ltd",
+            "updated_time": "2026-05-14 07:41:20",
+            "vessel_flight_name": "TEST VESSEL",
+            "volume_count": null
+          }
+        ],
+        "limit": 20,
+        "offset": 0,
+        "total": 1
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-07",
+    "module": "业务查询",
+    "item": "查询业务详情",
+    "method": "GET",
+    "path": "/api/business/4",
+    "status": 200,
+    "elapsed_ms": 209.48,
+    "passed": true,
+    "summary": "business_id=4, s_ref=TEST/2026/20260514154119",
+    "raw": {
+      "method": "GET",
+      "path": "/api/business/4",
+      "status": 200,
+      "elapsed_ms": 209.48,
+      "body": {
+        "business": {
+          "arrival_date": "2026-05-13",
+          "balance_amount": "0.00",
+          "balance_direction": "PAYABLE",
+          "business_type": "IMPORT",
+          "cargo_desc": "Test cargo",
+          "cif_amount": "11200.00",
+          "cif_brl_amount": "57344.00",
+          "cif_currency": "USD",
+          "created_time": "2026-05-14 07:41:20",
+          "customer_address": "Rua Teste 100",
+          "customer_city": "Sao Paulo",
+          "customer_name": "Cliente Teste Automatizado",
+          "customer_state": "SP",
+          "customer_tax_no": "12.345.678/0001-90",
+          "customer_zip_code": "01310-100",
+          "customs_clearance_date": "2026-05-14",
+          "data_status": "DRAFT",
+          "destination": "Santos",
+          "di_duimp_due": "26BRTEST001-1",
+          "document_no": "20260514154119",
+          "dollar_rate": "5.120000",
+          "euro_rate": "5.530000",
+          "fee_items": [
+            {
+              "business_id": 4,
+              "created_time": "2026-05-14 07:41:20",
+              "credit_amount": null,
+              "debit_amount": "200.00",
+              "fee_code": "001",
+              "fee_date": "2026-05-14",
+              "fee_name": "Taxa SISCOMEX",
+              "id": 67,
+              "line_no": 1,
+              "raw_text": "14.05.2026 001 Taxa SISCOMEX 200,00"
+            },
+            {
+              "business_id": 4,
+              "created_time": "2026-05-14 07:41:20",
+              "credit_amount": null,
+              "debit_amount": "300.00",
+              "fee_code": "002",
+              "fee_date": "2026-05-14",
+              "fee_name": "AFRMM",
+              "id": 68,
+              "line_no": 2,
+              "raw_text": "14.05.2026 002 AFRMM 300,00"
+            },
+            {
+              "business_id": 4,
+              "created_time": "2026-05-14 07:41:20",
+              "credit_amount": "500.00",
+              "debit_amount": null,
+              "fee_code": "200",
+              "fee_date": "2026-05-14",
+              "fee_name": "ADIANTAMENTO CLIENTE",
+              "id": 69,
+              "line_no": 3,
+              "raw_text": "14.05.2026 200 ADIANTAMENTO CLIENTE 500,00"
+            }
+          ],
+          "fob_amount": "57344.00",
+          "fob_currency": "R$",
+          "freight_amount": "1200.00",
+          "freight_currency": "USD",
+          "gross_weight": "1234.560",
+          "hawb_hbl": "HBL-TEST-001",
+          "id": 4,
+          "invoice_no": "INV-TEST-001",
+          "issuer_name": "PortaBrasil Logistica Ltda",
+          "issuer_tax_no": "41.222.333/0001-44",
+          "loading_date": "2026-05-14",
+          "mawb_mbl": "MBL-TEST-001",
+          "n_ref": "PROC-20260514154119",
+          "nf_no": "NF-TEST-001",
+          "process_no": "PROC-20260514154119",
+          "registration_date": "2026-05-14",
+          "s_ref": "TEST/2026/20260514154119",
+          "source_file_id": null,
+          "source_page_no": 1,
+          "total_credit": "500.00",
+          "total_debit": "500.00",
+          "trade_company": "Test Supplier Ltd",
+          "updated_time": "2026-05-14 07:41:20",
+          "vessel_flight_name": "TEST VESSEL",
+          "volume_count": null
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-08",
+    "module": "费用明细",
+    "item": "查询费用明细",
+    "method": "GET",
+    "path": "/api/business/4/fees",
+    "status": 200,
+    "elapsed_ms": 286.54,
+    "passed": true,
+    "summary": "total=3, items=3",
+    "raw": {
+      "method": "GET",
+      "path": "/api/business/4/fees",
+      "status": 200,
+      "elapsed_ms": 286.54,
+      "body": {
+        "items": [
+          {
+            "business_id": 4,
+            "created_time": "2026-05-14 07:41:20",
+            "credit_amount": null,
+            "debit_amount": "200.00",
+            "fee_code": "001",
+            "fee_date": "2026-05-14",
+            "fee_name": "Taxa SISCOMEX",
+            "id": 67,
+            "line_no": 1,
+            "raw_text": "14.05.2026 001 Taxa SISCOMEX 200,00"
+          },
+          {
+            "business_id": 4,
+            "created_time": "2026-05-14 07:41:20",
+            "credit_amount": null,
+            "debit_amount": "300.00",
+            "fee_code": "002",
+            "fee_date": "2026-05-14",
+            "fee_name": "AFRMM",
+            "id": 68,
+            "line_no": 2,
+            "raw_text": "14.05.2026 002 AFRMM 300,00"
+          },
+          {
+            "business_id": 4,
+            "created_time": "2026-05-14 07:41:20",
+            "credit_amount": "500.00",
+            "debit_amount": null,
+            "fee_code": "200",
+            "fee_date": "2026-05-14",
+            "fee_name": "ADIANTAMENTO CLIENTE",
+            "id": 69,
+            "line_no": 3,
+            "raw_text": "14.05.2026 200 ADIANTAMENTO CLIENTE 500,00"
+          }
+        ],
+        "total": 3
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-09",
+    "module": "流程跟踪",
+    "item": "查询清关流程记录",
+    "method": "GET",
+    "path": "/api/process/records?q=MBL-TEST-001",
+    "status": 200,
+    "elapsed_ms": 690.46,
+    "passed": true,
+    "summary": "total=1, items=1",
+    "raw": {
+      "method": "GET",
+      "path": "/api/process/records?q=MBL-TEST-001",
+      "status": 200,
+      "elapsed_ms": 690.46,
+      "body": {
+        "items": [
+          {
+            "bl": "MBL-TEST-001",
+            "business_id": 3,
+            "created_time": "2026-05-14 11:20:24",
+            "declaration_date": "2026-05-14",
+            "goods_desc": "Test cargo",
+            "id": 8,
+            "overall_status": "INSPECTION",
+            "port": "Santos",
+            "status": "inspection",
+            "updated_time": "2026-05-14 15:41:21"
+          }
+        ],
+        "limit": 20,
+        "offset": 0,
+        "total": 1
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-10",
+    "module": "流程跟踪",
+    "item": "查询流程详情",
+    "method": "GET",
+    "path": "/api/process/records/8",
+    "status": 200,
+    "elapsed_ms": 282.85,
+    "passed": true,
+    "summary": "record_id=8, total_base=None",
+    "raw": {
+      "method": "GET",
+      "path": "/api/process/records/8",
+      "status": 200,
+      "elapsed_ms": 282.85,
+      "body": {
+        "control_permissions": {
+          "allowed_step_nos": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "can_advance": true,
+          "can_rollback": true,
+          "next_allowed_roles": [
+            "FORWARDER"
+          ],
+          "next_step_no": 10,
+          "rollback_allowed_roles": [
+            "FORWARDER"
+          ],
+          "rollback_step_no": 9,
+          "step_role_map": {
+            "1": [
+              "FORWARDER"
+            ],
+            "10": [
+              "FORWARDER"
+            ],
+            "2": [
+              "CUSTOMS"
+            ],
+            "3": [
+              "CUSTOMS"
+            ],
+            "4": [
+              "FINANCE"
+            ],
+            "5": [
+              "FINANCE"
+            ],
+            "6": [
+              "CUSTOMS"
+            ],
+            "7": [
+              "CUSTOMS"
+            ],
+            "8": [
+              "FORWARDER"
+            ],
+            "9": [
+              "FORWARDER"
+            ]
+          }
+        },
+        "progress": {
+          "complete_count": 9,
+          "current_step_no": 10,
+          "percentage": 90,
+          "total_count": 10
+        },
+        "record": {
+          "bl": "MBL-TEST-001",
+          "business_id": 3,
+          "created_time": "2026-05-14 11:20:24",
+          "declaration_date": "2026-05-14",
+          "goods_desc": "Test cargo",
+          "id": 8,
+          "overall_status": "INSPECTION",
+          "port": "Santos",
+          "status": "inspection",
+          "updated_time": "2026-05-14 15:41:21"
+        },
+        "steps": [
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-13",
+            "desc": "MBL-TEST-001 - 货物到港确认",
+            "id": 84,
+            "status": "COMPLETE",
+            "step_no": 1,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 海关申报",
+            "id": 85,
+            "status": "COMPLETE",
+            "step_no": 2,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 文件审核",
+            "id": 86,
+            "status": "COMPLETE",
+            "step_no": 3,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 税费计算",
+            "id": 87,
+            "status": "COMPLETE",
+            "step_no": 4,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 税费缴纳",
+            "id": 88,
+            "status": "COMPLETE",
+            "step_no": 5,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 海关查验",
+            "id": 89,
+            "status": "COMPLETE",
+            "step_no": 6,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 放行通知",
+            "id": 90,
+            "status": "COMPLETE",
+            "step_no": 7,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 提货准备",
+            "id": 91,
+            "status": "COMPLETE",
+            "step_no": 8,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 货物提取",
+            "id": 92,
+            "status": "COMPLETE",
+            "step_no": 9,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "",
+            "desc": "MBL-TEST-001 - 运输配送",
+            "id": 93,
+            "status": "PENDING",
+            "step_no": 10,
+            "updated_time": "2026-05-14 15:41:21"
+          }
+        ]
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-11",
+    "module": "流程跟踪",
+    "item": "更新流程步骤状态",
+    "method": "PUT",
+    "path": "/api/process/records/8/steps/10",
+    "status": 200,
+    "elapsed_ms": 579.15,
+    "passed": true,
+    "summary": "record_id=8, total_base=None",
+    "raw": {
+      "method": "PUT",
+      "path": "/api/process/records/8/steps/10",
+      "status": 200,
+      "elapsed_ms": 579.15,
+      "body": {
+        "control_permissions": {
+          "allowed_step_nos": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "can_advance": false,
+          "can_rollback": true,
+          "next_allowed_roles": [],
+          "next_step_no": null,
+          "rollback_allowed_roles": [
+            "FORWARDER"
+          ],
+          "rollback_step_no": 10,
+          "step_role_map": {
+            "1": [
+              "FORWARDER"
+            ],
+            "10": [
+              "FORWARDER"
+            ],
+            "2": [
+              "CUSTOMS"
+            ],
+            "3": [
+              "CUSTOMS"
+            ],
+            "4": [
+              "FINANCE"
+            ],
+            "5": [
+              "FINANCE"
+            ],
+            "6": [
+              "CUSTOMS"
+            ],
+            "7": [
+              "CUSTOMS"
+            ],
+            "8": [
+              "FORWARDER"
+            ],
+            "9": [
+              "FORWARDER"
+            ]
+          }
+        },
+        "progress": {
+          "complete_count": 10,
+          "current_step_no": null,
+          "percentage": 100,
+          "total_count": 10
+        },
+        "record": {
+          "bl": "MBL-TEST-001",
+          "business_id": 3,
+          "created_time": "2026-05-14 11:20:24",
+          "declaration_date": "2026-05-14",
+          "goods_desc": "Test cargo",
+          "id": 8,
+          "overall_status": "CLEARED",
+          "port": "Santos",
+          "status": "cleared",
+          "updated_time": "2026-05-14 15:41:22"
+        },
+        "steps": [
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-13",
+            "desc": "MBL-TEST-001 - 货物到港确认",
+            "id": 84,
+            "status": "COMPLETE",
+            "step_no": 1,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 海关申报",
+            "id": 85,
+            "status": "COMPLETE",
+            "step_no": 2,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 文件审核",
+            "id": 86,
+            "status": "COMPLETE",
+            "step_no": 3,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 税费计算",
+            "id": 87,
+            "status": "COMPLETE",
+            "step_no": 4,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 税费缴纳",
+            "id": 88,
+            "status": "COMPLETE",
+            "step_no": 5,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 海关查验",
+            "id": 89,
+            "status": "COMPLETE",
+            "step_no": 6,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 放行通知",
+            "id": 90,
+            "status": "COMPLETE",
+            "step_no": 7,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 提货准备",
+            "id": 91,
+            "status": "COMPLETE",
+            "step_no": 8,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14",
+            "desc": "MBL-TEST-001 - 货物提取",
+            "id": 92,
+            "status": "COMPLETE",
+            "step_no": 9,
+            "updated_time": "2026-05-14 15:41:21"
+          },
+          {
+            "created_time": "2026-05-14 11:20:24",
+            "date": "05-14 15:41",
+            "desc": "系统测试自动更新",
+            "id": 93,
+            "status": "COMPLETE",
+            "step_no": 10,
+            "updated_time": "2026-05-14 15:41:22"
+          }
+        ]
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-12",
+    "module": "仪表盘",
+    "item": "获取首页统计",
+    "method": "GET",
+    "path": "/api/dashboard/overview",
+    "status": 200,
+    "elapsed_ms": 692.17,
+    "passed": true,
+    "summary": "{'activities': [{'description': '商业发票和装箱单已通过巴西海关审核系统 (Siscomex)。', 'id': 3, 'time': '2026-04-16 06:43:28', 'title': '文件审",
+    "raw": {
+      "method": "GET",
+      "path": "/api/dashboard/overview",
+      "status": 200,
+      "elapsed_ms": 692.17,
+      "body": {
+        "activities": [
+          {
+            "description": "商业发票和装箱单已通过巴西海关审核系统 (Siscomex)。",
+            "id": 3,
+            "time": "2026-04-16 06:43:28",
+            "title": "文件审核通过",
+            "type": "INFO"
+          },
+          {
+            "description": "提单号 BR2023082401 关税已计算完成，等待支付。",
+            "id": 2,
+            "time": "2026-04-16 06:43:28",
+            "title": "税费计算完成",
+            "type": "SUCCESS"
+          },
+          {
+            "description": "集装箱号 TCNU8473629 被抽中例行查验。",
+            "id": 1,
+            "time": "2026-04-16 06:43:28",
+            "title": "海关查验通知",
+            "type": "ALERT"
+          }
+        ],
+        "kanban": {
+          "anomaly": 4,
+          "items": [
+            {
+              "count": 0,
+              "step_no": 1
+            },
+            {
+              "count": 0,
+              "step_no": 2
+            },
+            {
+              "count": 0,
+              "step_no": 3
+            },
+            {
+              "count": 1,
+              "step_no": 4
+            },
+            {
+              "count": 0,
+              "step_no": 5
+            },
+            {
+              "count": 0,
+              "step_no": 6
+            },
+            {
+              "count": 1,
+              "step_no": 7
+            },
+            {
+              "count": 0,
+              "step_no": 8
+            },
+            {
+              "count": 0,
+              "step_no": 9
+            },
+            {
+              "count": 6,
+              "step_no": 10
+            }
+          ],
+          "normal": 4,
+          "total": 8
+        },
+        "stats": {
+          "anomaly": 4,
+          "done_month": 0,
+          "in_progress": 1,
+          "taxes_due": 408192.46
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-13",
+    "module": "报表",
+    "item": "查询报表记录",
+    "method": "GET",
+    "path": "/api/reports/records?limit=5",
+    "status": 200,
+    "elapsed_ms": 302.52,
+    "passed": true,
+    "summary": "total=8, items=5",
+    "raw": {
+      "method": "GET",
+      "path": "/api/reports/records?limit=5",
+      "status": 200,
+      "elapsed_ms": 302.52,
+      "body": {
+        "items": [
+          {
+            "bl": "MBL-TEST-001",
+            "business_id": 4,
+            "created_time": "2026-05-14 11:20:24",
+            "declaration_date": "2026-05-14",
+            "goods_desc": "Test cargo",
+            "id": 8,
+            "overall_status": "INSPECTION",
+            "port": "Santos",
+            "status": "inspection",
+            "updated_time": "2026-05-14 15:41:23"
+          },
+          {
+            "bl": "BR2023082401",
+            "business_id": null,
+            "created_time": "2026-04-16 06:43:28",
+            "declaration_date": "2025-08-24",
+            "goods_desc": "工业机械零件",
+            "id": 1,
+            "overall_status": "PROCESSING",
+            "port": "Santos (SSZ)",
+            "status": "processing",
+            "updated_time": "2026-05-11 09:33:30"
+          },
+          {
+            "bl": "BR2023082109",
+            "business_id": null,
+            "created_time": "2026-04-16 06:43:28",
+            "declaration_date": "2025-08-21",
+            "goods_desc": "电子消费产品",
+            "id": 2,
+            "overall_status": "CLEARED",
+            "port": "Paranaguá (PNG)",
+            "status": "cleared",
+            "updated_time": "2026-05-11 09:33:30"
+          },
+          {
+            "bl": "BR2023081944",
+            "business_id": null,
+            "created_time": "2026-04-16 06:43:28",
+            "declaration_date": "2025-08-19",
+            "goods_desc": "纺织原材料",
+            "id": 3,
+            "overall_status": "INSPECTION",
+            "port": "Rio de Janeiro",
+            "status": "inspection",
+            "updated_time": "2026-05-11 09:33:30"
+          },
+          {
+            "bl": "BR2023081522",
+            "business_id": null,
+            "created_time": "2026-04-16 06:43:28",
+            "declaration_date": "2025-08-15",
+            "goods_desc": "医疗器械设备",
+            "id": 4,
+            "overall_status": "CLEARED",
+            "port": "Santos (SSZ)",
+            "status": "cleared",
+            "updated_time": "2026-05-11 09:33:30"
+          }
+        ],
+        "limit": 5,
+        "offset": 0,
+        "total": 8
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-14",
+    "module": "成本分析",
+    "item": "获取成本概览",
+    "method": "GET",
+    "path": "/api/cost/overview",
+    "status": 200,
+    "elapsed_ms": 313.59,
+    "passed": true,
+    "summary": "{'largest_share': {'amount': 218564.38, 'label': 'IPI', 'percent': 55.57}, 'major_tax_details': [{'amount': 218564.38, '",
+    "raw": {
+      "method": "GET",
+      "path": "/api/cost/overview",
+      "status": 200,
+      "elapsed_ms": 313.59,
+      "body": {
+        "largest_share": {
+          "amount": 218564.38,
+          "label": "IPI",
+          "percent": 55.57
+        },
+        "major_tax_details": [
+          {
+            "amount": 218564.38,
+            "label": "IPI",
+            "percent": 55.57
+          },
+          {
+            "amount": 95966.39,
+            "label": "II",
+            "percent": 24.4
+          },
+          {
+            "amount": 51586.56,
+            "label": "COFINS DE IMPORTACAO",
+            "percent": 13.12
+          },
+          {
+            "amount": 15945.56,
+            "label": "ARMAZENAGEM",
+            "percent": 4.05
+          },
+          {
+            "amount": 11226.08,
+            "label": "PIS DE IMPORTACAO",
+            "percent": 2.85
+          }
+        ],
+        "total_import_cost": 408192.46
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-15",
+    "module": "汇率接口",
+    "item": "获取 USD/BRL 汇率",
+    "method": "GET",
+    "path": "/api/cost/exchange-rate?base=USD&quote=BRL",
+    "status": 200,
+    "elapsed_ms": 342.96,
+    "passed": true,
+    "summary": "rate=4.9114, source=apihz, live=True",
+    "raw": {
+      "method": "GET",
+      "path": "/api/cost/exchange-rate?base=USD&quote=BRL",
+      "status": 200,
+      "elapsed_ms": 342.96,
+      "body": {
+        "base": "USD",
+        "live": true,
+        "quote": "BRL",
+        "rate": 4.9114,
+        "source": "apihz",
+        "stale": false,
+        "updated_at": "2026-05-14 08:00:01"
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-16",
+    "module": "成本分析",
+    "item": "成本计算",
+    "method": "POST",
+    "path": "/api/cost/calculate",
+    "status": 200,
+    "elapsed_ms": 177.26,
+    "passed": true,
+    "summary": "{'net_customs': 500.0, 'per_unit_cost': 448.2667, 'total_base': 6724.0, 'total_qty': 15.0, 'usd_in_brl': 6144.0}",
+    "raw": {
+      "method": "POST",
+      "path": "/api/cost/calculate",
+      "status": 200,
+      "elapsed_ms": 177.26,
+      "body": {
+        "input": {
+          "customs_fee": 500.0,
+          "other_fees": 80.0,
+          "products": [
+            {
+              "name": "Test Product A",
+              "qty": 10.0
+            },
+            {
+              "name": "Test Product B",
+              "qty": 5.0
+            }
+          ],
+          "refund_fee": 0.0,
+          "usd_amount": 1200.0,
+          "usd_rate": 5.12
+        },
+        "product_costs": [
+          {
+            "cost": 4482.6667,
+            "name": "Test Product A",
+            "qty": 10.0,
+            "unit_cost": 448.2667
+          },
+          {
+            "cost": 2241.3333,
+            "name": "Test Product B",
+            "qty": 5.0,
+            "unit_cost": 448.2667
+          }
+        ],
+        "summary": {
+          "net_customs": 500.0,
+          "per_unit_cost": 448.2667,
+          "total_base": 6724.0,
+          "total_qty": 15.0,
+          "usd_in_brl": 6144.0
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-17",
+    "module": "成本分析",
+    "item": "保存成本记录",
+    "method": "POST",
+    "path": "/api/cost/records",
+    "status": 201,
+    "elapsed_ms": 274.6,
+    "passed": true,
+    "summary": "record_id=3, total_base=6724.0",
+    "raw": {
+      "method": "POST",
+      "path": "/api/cost/records",
+      "status": 201,
+      "elapsed_ms": 274.6,
+      "body": {
+        "record": {
+          "created_by": 1,
+          "created_by_name": "超级管理员",
+          "created_time": "2026-05-14 07:41:25",
+          "currency": "BRL",
+          "customs_fee": 500.0,
+          "id": 3,
+          "items": [
+            {
+              "allocation_cost": 4482.6667,
+              "id": 5,
+              "line_no": 1,
+              "product_name": "Test Product A",
+              "qty": 10.0,
+              "unit_cost": 448.2667
+            },
+            {
+              "allocation_cost": 2241.3333,
+              "id": 6,
+              "line_no": 2,
+              "product_name": "Test Product B",
+              "qty": 5.0,
+              "unit_cost": 448.2667
+            }
+          ],
+          "note": "系统测试自动生成成本记录",
+          "other_fees": 80.0,
+          "per_unit_cost": 448.2667,
+          "process_record_id": 8,
+          "record_no": "COST-20260514154125014033",
+          "refund_fee": 0.0,
+          "total_base": 6724.0,
+          "total_qty": 15.0,
+          "updated_time": "2026-05-14 07:41:25",
+          "usd_amount": 1200.0,
+          "usd_rate": 5.12
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-18",
+    "module": "成本分析",
+    "item": "查询成本记录详情",
+    "method": "GET",
+    "path": "/api/cost/records/3",
+    "status": 200,
+    "elapsed_ms": 295.01,
+    "passed": true,
+    "summary": "record_id=3, total_base=6724.0",
+    "raw": {
+      "method": "GET",
+      "path": "/api/cost/records/3",
+      "status": 200,
+      "elapsed_ms": 295.01,
+      "body": {
+        "record": {
+          "created_by": 1,
+          "created_by_name": "超级管理员",
+          "created_time": "2026-05-14 07:41:25",
+          "currency": "BRL",
+          "customs_fee": 500.0,
+          "id": 3,
+          "items": [
+            {
+              "allocation_cost": 4482.6667,
+              "id": 5,
+              "line_no": 1,
+              "product_name": "Test Product A",
+              "qty": 10.0,
+              "unit_cost": 448.2667
+            },
+            {
+              "allocation_cost": 2241.3333,
+              "id": 6,
+              "line_no": 2,
+              "product_name": "Test Product B",
+              "qty": 5.0,
+              "unit_cost": 448.2667
+            }
+          ],
+          "note": "系统测试自动生成成本记录",
+          "other_fees": 80.0,
+          "per_unit_cost": 448.2667,
+          "process_record_id": 8,
+          "record_no": "COST-20260514154125014033",
+          "refund_fee": 0.0,
+          "total_base": 6724.0,
+          "total_qty": 15.0,
+          "updated_time": "2026-05-14 07:41:25",
+          "usd_amount": 1200.0,
+          "usd_rate": 5.12
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-19",
+    "module": "文件上传",
+    "item": "PDF 上传但不解析",
+    "method": "POST",
+    "path": "/api/files/upload",
+    "status": 200,
+    "elapsed_ms": 214.78,
+    "passed": true,
+    "summary": "file_id=1, status=SUCCESS",
+    "raw": {
+      "method": "POST",
+      "path": "/api/files/upload",
+      "status": 200,
+      "elapsed_ms": 214.78,
+      "body": {
+        "duplicated": true,
+        "file": {
+          "file_hash": "1e5537a1e9c31b4c2bbed84979b13aec49b0cff12c11aef382ea8f51961044d1",
+          "file_name": "P1.pdf",
+          "file_path": "uploads/20260416/e35d94730b004418a99543bc726c4097.pdf",
+          "file_size": 112650,
+          "id": 1,
+          "page_count": 1,
+          "parse_status": "SUCCESS",
+          "remark": null,
+          "upload_time": "2026-04-16 07:25:45"
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-20",
+    "module": "外部 PDF API",
+    "item": "PDF 上传并调用真实解析 API 一次",
+    "method": "POST",
+    "path": "/api/files/upload",
+    "status": 201,
+    "elapsed_ms": 4726.34,
+    "passed": true,
+    "summary": "business_id=1, s_ref=20250528000158",
+    "raw": {
+      "method": "POST",
+      "path": "/api/files/upload",
+      "status": 201,
+      "elapsed_ms": 4726.34,
+      "body": {
+        "agent_trace": [
+          {
+            "action": "start",
+            "agent": "PDFIngestionSupervisor",
+            "detail": {
+              "file_id": 4,
+              "task_id": 7
+            }
+          },
+          {
+            "action": "choose_parser_tool",
+            "agent": "ParserStrategyAgent",
+            "detail": {
+              "fallback_choices": [
+                "prime"
+              ],
+              "file_size": 112693,
+              "file_type": "PDF",
+              "first_choice": "lite",
+              "reason": "start_with_fast_lite_then_escalate_to_prime_when_quality_is_low"
+            }
+          },
+          {
+            "action": "parse_pdf",
+            "agent": "DocumentParserAgent",
+            "detail": {
+              "content_length": 2061,
+              "error": null,
+              "file_type": "PDF",
+              "status": "succeeded",
+              "tool_type": "lite"
+            }
+          },
+          {
+            "action": "assess_parse_quality",
+            "agent": "ExtractionQualityAgent",
+            "detail": {
+              "content_length": 2061,
+              "fee_items_count": 21,
+              "has_fallback": true,
+              "min_content_length": 300,
+              "missing_fields": [],
+              "reasons": [],
+              "s_ref": "20250528000158",
+              "status": "ACCEPT"
+            }
+          },
+          {
+            "action": "extract_and_upsert_business",
+            "agent": "BusinessExtractionAgent",
+            "detail": {
+              "business_id": 1,
+              "fee_items_count": 21,
+              "s_ref": "20250528000158"
+            }
+          },
+          {
+            "action": "validate_extracted_fields",
+            "agent": "FieldValidationAgent",
+            "detail": {
+              "fee_items_count": 21,
+              "missing_fields": [],
+              "status": "PASS"
+            }
+          },
+          {
+            "action": "skip_auto_audit",
+            "agent": "AutoAuditAgent",
+            "detail": {
+              "reason": "auto_audit=false"
+            }
+          }
+        ],
+        "business": {
+          "arrival_date": "2025-06-25",
+          "balance_amount": "27491.76",
+          "balance_direction": "FAVOR",
+          "business_type": "IMPORT",
+          "cargo_desc": "X12-10",
+          "cif_amount": "47941.00",
+          "cif_brl_amount": null,
+          "cif_currency": "USD",
+          "created_time": "2026-04-16 07:25:46",
+          "customer_address": "\u0000\u0001 RUA MARIA RODRIGUES No.:164",
+          "customer_city": "\u0002\u0003\u0000\u0001 RIO DE JANEIRO",
+          "customer_name": "LAIOUN'S IMPORTACAO E EXPORTACAO LTDA ME",
+          "customer_state": "RJ",
+          "customer_tax_no": "09.089.839/0001-12",
+          "customer_zip_code": "21031-490",
+          "customs_clearance_date": "2025-07-01",
+          "data_status": "DRAFT",
+          "destination": "RIO DE JANEIRO",
+          "di_duimp_due": "25/1439746-3",
+          "document_no": "12626",
+          "dollar_rate": "5.457100",
+          "euro_rate": "0.000000",
+          "fee_items": [
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "600.00",
+              "fee_code": "112",
+              "fee_date": "2025-06-26",
+              "fee_name": "CAPATAZIA",
+              "id": 70,
+              "line_no": 1,
+              "raw_text": "26.06.2025 112 CAPATAZIA 600,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "585.00",
+              "fee_code": "113",
+              "fee_date": "2025-06-26",
+              "fee_name": "LIBERACAO DE BL",
+              "id": 71,
+              "line_no": 2,
+              "raw_text": "26.06.2025 113 LIBERACAO DE BL 585,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": "228389.13",
+              "debit_amount": null,
+              "fee_code": "200",
+              "fee_date": "2025-06-26",
+              "fee_name": "ADIANTAMENTO",
+              "id": 72,
+              "line_no": 3,
+              "raw_text": "26.06.2025 200 ADIANTAMENTO 228.389,13"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "603.00",
+              "fee_code": "213",
+              "fee_date": "2025-06-26",
+              "fee_name": "EMISSAO DE BL",
+              "id": 73,
+              "line_no": 4,
+              "raw_text": "26.06.2025 213 EMISSAO DE BL 603,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "140.00",
+              "fee_code": "369",
+              "fee_date": "2025-06-26",
+              "fee_name": "DAMAGE FEE",
+              "id": 74,
+              "line_no": 5,
+              "raw_text": "26.06.2025 369 DAMAGE FEE 140,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "100.00",
+              "fee_code": "370",
+              "fee_date": "2025-06-26",
+              "fee_name": "EQUIPAMENT HANDOVER CHARGE",
+              "id": 75,
+              "line_no": 6,
+              "raw_text": "26.06.2025 370 EQUIPAMENT HANDOVER CHARGE 100,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "47091.39",
+              "fee_code": "100",
+              "fee_date": "2025-07-01",
+              "fee_name": "II",
+              "id": 76,
+              "line_no": 7,
+              "raw_text": "01.07.2025 100 II 47.091,39"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "108048.58",
+              "fee_code": "101",
+              "fee_date": "2025-07-01",
+              "fee_name": "IPI",
+              "id": 77,
+              "line_no": 8,
+              "raw_text": "01.07.2025 101 IPI 108.048,58"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "254.49",
+              "fee_code": "102",
+              "fee_date": "2025-07-01",
+              "fee_name": "TX.SISCOMEX",
+              "id": 78,
+              "line_no": 9,
+              "raw_text": "01.07.2025 102 TX.SISCOMEX 254,49"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "1065.42",
+              "fee_code": "103",
+              "fee_date": "2025-07-01",
+              "fee_name": "AFRMM",
+              "id": 79,
+              "line_no": 10,
+              "raw_text": "01.07.2025 103 AFRMM 1.065,42"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "5494.00",
+              "fee_code": "161",
+              "fee_date": "2025-07-01",
+              "fee_name": "PIS DE IMPORTACAO",
+              "id": 80,
+              "line_no": 11,
+              "raw_text": "01.07.2025 161 PIS DE IMPORTACAO 5.494,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "25246.23",
+              "fee_code": "162",
+              "fee_date": "2025-07-01",
+              "fee_name": "COFINS DE IMPORTACAO",
+              "id": 81,
+              "line_no": 12,
+              "raw_text": "01.07.2025 162 COFINS DE IMPORTACAO 25.246,23"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "759.00",
+              "fee_code": "107",
+              "fee_date": "2025-07-02",
+              "fee_name": "SIND.DOS DESP.ADUANEIROS",
+              "id": 82,
+              "line_no": 13,
+              "raw_text": "02.07.2025 107 SIND.DOS DESP.ADUANEIROS 759,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "7972.78",
+              "fee_code": "110",
+              "fee_date": "2025-07-03",
+              "fee_name": "ARMAZENAGEM",
+              "id": 83,
+              "line_no": 14,
+              "raw_text": "03.07.2025 110 ARMAZENAGEM 7.972,78"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "-42.43",
+              "fee_code": "001",
+              "fee_date": "2025-07-04",
+              "fee_name": "IRRF",
+              "id": 84,
+              "line_no": 15,
+              "raw_text": "04.07.2025 001 IRRF -42,43"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "-28.28",
+              "fee_code": "002",
+              "fee_date": "2025-07-04",
+              "fee_name": "CSLL 1%",
+              "id": 85,
+              "line_no": 16,
+              "raw_text": "04.07.2025 002 CSLL 1% -28,28"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "-18.38",
+              "fee_code": "003",
+              "fee_date": "2025-07-04",
+              "fee_name": "PIS 0.65%",
+              "id": 86,
+              "line_no": 17,
+              "raw_text": "04.07.2025 003 PIS 0.65% -18,38"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "-84.85",
+              "fee_code": "004",
+              "fee_date": "2025-07-04",
+              "fee_name": "COFINS 3%",
+              "id": 87,
+              "line_no": 18,
+              "raw_text": "04.07.2025 004 COFINS 3% -84,85"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "2687.00",
+              "fee_code": "005",
+              "fee_date": "2025-07-04",
+              "fee_name": "HONORARIOS",
+              "id": 88,
+              "line_no": 19,
+              "raw_text": "04.07.2025 005 HONORARIOS 2.687,00"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "141.42",
+              "fee_code": "006",
+              "fee_date": "2025-07-04",
+              "fee_name": "ISS",
+              "id": 89,
+              "line_no": 20,
+              "raw_text": "04.07.2025 006 ISS 141,42"
+            },
+            {
+              "business_id": 1,
+              "created_time": "2026-05-14 07:41:29",
+              "credit_amount": null,
+              "debit_amount": "283.00",
+              "fee_code": "009",
+              "fee_date": "2025-07-04",
+              "fee_name": "DESPESA ADMINISTRATIVA",
+              "id": 90,
+              "line_no": 21,
+              "raw_text": "04.07.2025 009 DESPESA ADMINISTRATIVA 283,00"
+            }
+          ],
+          "fob_amount": "45656.29",
+          "fob_currency": "USD",
+          "freight_amount": "2284.71",
+          "freight_currency": "USD",
+          "gross_weight": "15280.000",
+          "hawb_hbl": "YMJAB232097847",
+          "id": 1,
+          "invoice_no": "20250528000158",
+          "issuer_name": "LOGIMEX COMERCIO EXTERIOR LTDA",
+          "issuer_tax_no": "02.155.413/0001-70",
+          "loading_date": "2025-07-03",
+          "mawb_mbl": "YMJAB232097847",
+          "n_ref": "2-12626/25",
+          "nf_no": "000000000014069",
+          "process_no": "2-12626/25",
+          "registration_date": "2025-07-01",
+          "s_ref": "20250528000158",
+          "source_file_id": 4,
+          "source_page_no": null,
+          "total_credit": "228389.13",
+          "total_debit": "200897.37",
+          "trade_company": "HAOY TRADING",
+          "updated_time": "2026-05-14 07:41:29",
+          "vessel_flight_name": "EVER FUTURE",
+          "volume_count": 191
+        },
+        "duplicated": false,
+        "file": {
+          "file_hash": "eea9ea9084bcb4be9b8973dde55b92ca3679da12c3a9e88e60e086477ad77a29",
+          "file_name": "portabrasil-system-test-20260514-154116-5452389cbf9d46d48d118f09abaecdd7.pdf",
+          "file_path": "uploads/20260514/ed44c81124e64c10977c1bb3be5cc8ec.pdf",
+          "file_size": 112693,
+          "id": 4,
+          "page_count": 1,
+          "parse_status": "SUCCESS",
+          "remark": null,
+          "upload_time": "2026-05-14 07:41:26"
+        },
+        "task_id": 7
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-21",
+    "module": "AI 审计",
+    "item": "AI 审计接口执行（按风险策略选择规则或 LLM）",
+    "method": "POST",
+    "path": "/api/audit/business/4/run",
+    "status": 201,
+    "elapsed_ms": 765.11,
+    "passed": true,
+    "summary": "source=RULE, risk=LOW, score=92.0",
+    "raw": {
+      "method": "POST",
+      "path": "/api/audit/business/4/run",
+      "status": 201,
+      "elapsed_ms": 765.11,
+      "body": {
+        "run": {
+          "business_id": 4,
+          "checks": [
+            {
+              "details": "总账与余额基本一致",
+              "name": "借贷平衡校验",
+              "status": "PASS"
+            },
+            {
+              "details": "费用与主单一致",
+              "name": "费用汇总一致性",
+              "status": "PASS"
+            }
+          ],
+          "cost_record_id": 3,
+          "created_by": 1,
+          "created_time": "2026-05-14 15:41:30",
+          "error_message": null,
+          "findings": [],
+          "id": 13,
+          "input_snapshot": {
+            "business": {
+              "arrival_date": "2026-05-13",
+              "balance_amount": "0.00",
+              "balance_direction": "PAYABLE",
+              "business_type": "IMPORT",
+              "cargo_desc": "Test cargo",
+              "cif_amount": "11200.00",
+              "cif_brl_amount": "57344.00",
+              "cif_currency": "USD",
+              "created_time": "2026-05-14 07:41:20",
+              "customer_address": "Rua Teste 100",
+              "customer_city": "Sao Paulo",
+              "customer_name": "Cliente Teste Automatizado",
+              "customer_state": "SP",
+              "customer_tax_no": "12.345.678/0001-90",
+              "customer_zip_code": "01310-100",
+              "customs_clearance_date": "2026-05-14",
+              "data_status": "DRAFT",
+              "destination": "Santos",
+              "di_duimp_due": "26BRTEST001-1",
+              "document_no": "20260514154119",
+              "dollar_rate": "5.120000",
+              "euro_rate": "5.530000",
+              "fob_amount": "57344.00",
+              "fob_currency": "R$",
+              "freight_amount": "1200.00",
+              "freight_currency": "USD",
+              "gross_weight": "1234.560",
+              "hawb_hbl": "HBL-TEST-001",
+              "id": 4,
+              "invoice_no": "INV-TEST-001",
+              "issuer_name": "PortaBrasil Logistica Ltda",
+              "issuer_tax_no": "41.222.333/0001-44",
+              "loading_date": "2026-05-14",
+              "mawb_mbl": "MBL-TEST-001",
+              "n_ref": "PROC-20260514154119",
+              "nf_no": "NF-TEST-001",
+              "process_no": "PROC-20260514154119",
+              "registration_date": "2026-05-14",
+              "s_ref": "TEST/2026/20260514154119",
+              "source_file_id": null,
+              "source_page_no": 1,
+              "total_credit": "500.00",
+              "total_debit": "500.00",
+              "trade_company": "Test Supplier Ltd",
+              "updated_time": "2026-05-14 07:41:20",
+              "vessel_flight_name": "TEST VESSEL",
+              "volume_count": null
+            },
+            "cost_record": {
+              "created_by": 1,
+              "created_time": "2026-05-14 07:41:25",
+              "currency": "BRL",
+              "customs_fee": "500.0000",
+              "id": 3,
+              "note": "系统测试自动生成成本记录",
+              "other_fees": "80.0000",
+              "per_unit_cost": "448.2667",
+              "process_record_id": 8,
+              "record_no": "COST-20260514154125014033",
+              "refund_fee": "0.0000",
+              "total_base": "6724.0000",
+              "total_qty": "15.0000",
+              "updated_time": "2026-05-14 07:41:25",
+              "usd_amount": "1200.0000",
+              "usd_rate": "5.120000"
+            },
+            "fee_items": [
+              {
+                "credit_amount": null,
+                "debit_amount": "200.00",
+                "fee_code": "001",
+                "fee_date": "2026-05-14",
+                "fee_name": "Taxa SISCOMEX",
+                "id": 67,
+                "line_no": 1
+              },
+              {
+                "credit_amount": null,
+                "debit_amount": "300.00",
+                "fee_code": "002",
+                "fee_date": "2026-05-14",
+                "fee_name": "AFRMM",
+                "id": 68,
+                "line_no": 2
+              },
+              {
+                "credit_amount": "500.00",
+                "debit_amount": null,
+                "fee_code": "200",
+                "fee_date": "2026-05-14",
+                "fee_name": "ADIANTAMENTO CLIENTE",
+                "id": 69,
+                "line_no": 3
+              }
+            ]
+          },
+          "model_name": null,
+          "risk_level": "LOW",
+          "score": 92.0,
+          "source": "RULE",
+          "status": "SUCCESS",
+          "summary": "规则审计完成：0 个问题，风险等级 LOW。",
+          "updated_time": "2026-05-14 15:41:31"
+        }
+      },
+      "passed": true
+    }
+  },
+  {
+    "id": "F-22",
+    "module": "AI 财务复核",
+    "item": "AI 财务复核接口执行（按风险策略选择规则或 LLM）",
+    "method": "POST",
+    "path": "/api/finance/cost-records/3/review",
+    "status": 201,
+    "elapsed_ms": 620.38,
+    "passed": true,
+    "summary": "source=RULE, health=GOOD, score=95.0",
+    "raw": {
+      "method": "POST",
+      "path": "/api/finance/cost-records/3/review",
+      "status": 201,
+      "elapsed_ms": 620.38,
+      "body": {
+        "review": {
+          "cost_record_id": 3,
+          "created_by": 1,
+          "created_time": "2026-05-14 15:41:31",
+          "error_message": null,
+          "health_level": "GOOD",
+          "id": 3,
+          "input_snapshot": {
+            "cost_items": [
+              {
+                "allocation_cost": "4482.6667",
+                "id": 5,
+                "line_no": 1,
+                "product_name": "Test Product A",
+                "qty": "10.0000",
+                "unit_cost": "448.2667"
+              },
+              {
+                "allocation_cost": "2241.3333",
+                "id": 6,
+                "line_no": 2,
+                "product_name": "Test Product B",
+                "qty": "5.0000",
+                "unit_cost": "448.2667"
+              }
+            ],
+            "cost_record": {
+              "created_by": 1,
+              "created_time": "2026-05-14 07:41:25",
+              "currency": "BRL",
+              "customs_fee": "500.0000",
+              "id": 3,
+              "note": "系统测试自动生成成本记录",
+              "other_fees": "80.0000",
+              "per_unit_cost": "448.2667",
+              "process_record_id": 8,
+              "record_no": "COST-20260514154125014033",
+              "refund_fee": "0.0000",
+              "total_base": "6724.0000",
+              "total_qty": "15.0000",
+              "updated_time": "2026-05-14 07:41:25",
+              "usd_amount": "1200.0000",
+              "usd_rate": "5.120000"
+            }
+          },
+          "items": [],
+          "metrics": {
+            "cost_pressure": "LOW",
+            "fx_sensitivity": "MEDIUM",
+            "gross_margin_hint": "缺少销售侧数据，无法直接计算毛利率。"
+          },
+          "model_name": null,
+          "score": 95.0,
+          "source": "RULE",
+          "status": "SUCCESS",
+          "summary": "规则核算分析完成：0 个关注点，健康度 GOOD。",
+          "updated_time": "2026-05-14 15:41:31"
+        }
+      },
+      "passed": true
+    }
+  }
+]

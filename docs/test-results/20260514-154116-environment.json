@@ -1,0 +1,117 @@
+[
+  {
+    "id": "E-01",
+    "item": "操作系统",
+    "result": "macOS-26.5-arm64-arm-64bit-Mach-O",
+    "passed": true
+  },
+  {
+    "id": "E-02",
+    "item": "Python 版本",
+    "result": "3.13.3",
+    "passed": true
+  },
+  {
+    "id": "E-03",
+    "item": "uv 工具版本",
+    "result": "uv 0.11.5 (Homebrew 2026-04-08 aarch64-apple-darwin)",
+    "elapsed_ms": 6.53,
+    "passed": true,
+    "raw": {
+      "name": "uv 工具版本",
+      "cmd": "uv --version",
+      "cwd": "/Users/leo/code/PortaBrasil/Portabrasil-server",
+      "returncode": 0,
+      "elapsed_ms": 6.53,
+      "stdout": "uv 0.11.5 (Homebrew 2026-04-08 aarch64-apple-darwin)\n",
+      "stderr": "",
+      "passed": true
+    }
+  },
+  {
+    "id": "E-04",
+    "item": "Node.js 版本",
+    "result": "v24.11.1",
+    "elapsed_ms": 70.89,
+    "passed": true,
+    "raw": {
+      "name": "Node.js 版本",
+      "cmd": "node --version",
+      "cwd": "/Users/leo/code/PortaBrasil/Portabrasil-web",
+      "returncode": 0,
+      "elapsed_ms": 70.89,
+      "stdout": "v24.11.1\n",
+      "stderr": "",
+      "passed": true
+    }
+  },
+  {
+    "id": "E-05",
+    "item": "npm 版本",
+    "result": "11.6.2",
+    "elapsed_ms": 174.53,
+    "passed": true,
+    "raw": {
+      "name": "npm 版本",
+      "cmd": "npm --version",
+      "cwd": "/Users/leo/code/PortaBrasil/Portabrasil-web",
+      "returncode": 0,
+      "elapsed_ms": 174.53,
+      "stdout": "11.6.2\n",
+      "stderr": "",
+      "passed": true
+    }
+  },
+  {
+    "id": "E-06",
+    "item": "前端代码规范检查",
+    "result": "✖ 14 problems (9 errors, 5 warnings)",
+    "elapsed_ms": 1088.42,
+    "passed": false,
+    "raw": {
+      "name": "前端代码规范检查",
+      "cmd": "npm run lint",
+      "cwd": "/Users/leo/code/PortaBrasil/Portabrasil-web",
+      "returncode": 1,
+      "elapsed_ms": 1088.42,
+      "stdout": "                                                                                                                                                                                                                                                                                     no-unused-vars\n\n/Users/leo/code/PortaBrasil/Portabrasil-web/src/shared/auth/AuthContext.jsx\n   20:9   warning  The 'currentRoles' logical expression could make the dependencies of useCallback Hook (at line 24) change on every render. To fix this, wrap the initialization of 'currentRoles' in its own useMemo() Hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps\n   33:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\n  31 |   useEffect(() => {\n  32 |     if (!auth?.access_token) {\n> 33 |       setIsLoading(false);\n     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect\n  34 |       return;\n  35 |     }\n  36 |  react-hooks/set-state-in-effect\n  112:17  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-refresh/only-export-components\n\n/Users/leo/code/PortaBrasil/Portabrasil-web/src/views/CostAnalysisView.jsx\n  62:6  warning  React Hook useEffect has missing dependencies: 'fetchOverview' and 'fetchRate'. Either include them or remove the dependency array  react-hooks/exhaustive-deps\n\n/Users/leo/code/PortaBrasil/Portabrasil-web/src/views/ProcessTrackingView.jsx\n  83:6  warning  React Hook useEffect has a missing dependency: 'loadList'. Either include it or remove the dependency array  react-hooks/exhaustive-deps\n\n/Users/leo/code/PortaBrasil/Portabrasil-web/src/views/UploadView.jsx\n  46:6  warning  React Hook useEffect has a missing dependency: 'loadFiles'. Either include it or remove the dependency array  react-hooks/exhaustive-deps\n\n✖ 14 problems (9 errors, 5 warnings)\n\n",
+      "stderr": "",
+      "passed": false
+    }
+  },
+  {
+    "id": "E-07",
+    "item": "前端生产构建",
+    "result": "✓ built in 1.14s",
+    "elapsed_ms": 1406.52,
+    "passed": true,
+    "raw": {
+      "name": "前端生产构建",
+      "cmd": "npm run build",
+      "cwd": "/Users/leo/code/PortaBrasil/Portabrasil-web",
+      "returncode": 0,
+      "elapsed_ms": 1406.52,
+      "stdout": "\n> customs-dashboard@0.0.0 build\n> vite build\n\nvite v7.3.1 building client environment for production...\ntransforming...\n✓ 1760 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.46 kB │ gzip:   0.30 kB\ndist/assets/index-BBNmYSDw.css   43.17 kB │ gzip:   7.81 kB\ndist/assets/index-BYqmjAdC.js   385.99 kB │ gzip: 113.46 kB\n✓ built in 1.14s\n",
+      "stderr": "",
+      "passed": true
+    }
+  },
+  {
+    "id": "E-08",
+    "item": "后端健康检查与云数据库连接",
+    "result": "status=ok, database=mysql",
+    "elapsed_ms": 6.44,
+    "passed": true,
+    "raw": {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "elapsed_ms": 6.44,
+      "body": {
+        "database": "mysql",
+        "status": "ok"
+      },
+      "passed": true
+    }
+  }
+]
