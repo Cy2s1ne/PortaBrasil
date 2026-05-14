@@ -8,7 +8,7 @@ from app.core.responses import api_response
 
 bp = Blueprint("admin_api", __name__)
 
-MANAGEABLE_ROLES = {"SUPER_ADMIN", "ADMIN"}
+MANAGEABLE_ROLES = {"SUPER_ADMIN"}
 
 
 def _is_super_admin(user: dict[str, Any]) -> bool:
@@ -44,13 +44,21 @@ def _normalize_user_from_row(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_role_from_row(row: dict[str, Any]) -> dict[str, Any]:
+    item = {**row, "id": int(row["id"])}
+    if item.get("role_code") == "ADMIN":
+        item["role_name"] = "公司高管"
+        item["description"] = "查看首页、流程跟踪、报表分析和成本分析"
+    return item
+
+
 def _validate_manage_permission(operator: dict[str, Any], target_user: dict[str, Any]) -> tuple[bool, Any]:
     if _is_super_admin(operator):
         return True, None
     if "SUPER_ADMIN" in set(target_user.get("roles") or []):
         return False, api_response({"error": "不能操作超级管理员账号"}, 403)
     if "ADMIN" in set(target_user.get("roles") or []):
-        return False, api_response({"error": "普通管理员不能操作管理员账号"}, 403)
+        return False, api_response({"error": "公司高管不能操作管理员账号"}, 403)
     return True, None
 
 
@@ -58,7 +66,7 @@ def _validate_role_assignment(operator: dict[str, Any], role_codes: list[str]) -
     if _is_super_admin(operator):
         return True, None
     if set(role_codes) & MANAGEABLE_ROLES:
-        return False, api_response({"error": "普通管理员不能分配管理员角色"}, 403)
+        return False, api_response({"error": "公司高管不能分配管理员角色"}, 403)
     return True, None
 
 
@@ -72,7 +80,7 @@ def _fetch_roles_by_codes(db, conn, role_codes: list[str]) -> list[dict[str, Any
 
 
 @bp.get("/api/admin/roles")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def list_roles():
     db = current_app.config["DB"]
     operator = g.current_user
@@ -91,12 +99,12 @@ def list_roles():
                 + " ORDER BY id ASC",
                 ["SUPER_ADMIN", "ADMIN"],
             )
-    items = [{**row, "id": int(row["id"])} for row in rows]
+    items = [_normalize_role_from_row(row) for row in rows]
     return api_response({"items": items, "total": len(items)})
 
 
 @bp.get("/api/admin/users")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def list_users():
     db = current_app.config["DB"]
     operator = g.current_user
@@ -189,7 +197,7 @@ def list_users():
 
 
 @bp.post("/api/admin/users")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def create_user():
     payload = request.get_json(silent=True) or {}
     operator = g.current_user
@@ -258,7 +266,7 @@ def create_user():
 
 
 @bp.put("/api/admin/users/<int:user_id>")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def update_user(user_id: int):
     payload = request.get_json(silent=True) or {}
     operator = g.current_user
@@ -347,7 +355,7 @@ def update_user(user_id: int):
 
 
 @bp.put("/api/admin/users/<int:user_id>/status")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def update_user_status(user_id: int):
     payload = request.get_json(silent=True) or {}
     try:
@@ -383,7 +391,7 @@ def update_user_status(user_id: int):
 
 
 @bp.put("/api/admin/users/<int:user_id>/password")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def reset_user_password(user_id: int):
     operator = g.current_user
     if int(operator["id"]) == user_id:

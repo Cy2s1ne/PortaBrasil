@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, ChevronRight, Circle, Download, Edit2, RotateCcw, Search, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronRight, Circle, Edit2, RotateCcw, Search, X } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
@@ -412,11 +412,6 @@ export default function ProcessTrackingView() {
               <span>{selectedRecord.port || '-'}</span>
             </div>
           </div>
-        </div>
-        <div className="flex space-x-3">
-          <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center">
-            <Download className="w-4 h-4 mr-2" /> {t.export_progress}
-          </button>
         </div>
       </div>
 

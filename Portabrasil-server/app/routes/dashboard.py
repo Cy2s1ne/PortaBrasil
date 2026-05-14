@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, current_app
+from flask import Blueprint, current_app, g
 
 from app.core.auth import jwt_required
 from app.core.responses import api_response
@@ -8,12 +8,91 @@ from services import sync_missing_process_records
 
 bp = Blueprint("dashboard_api", __name__)
 
+ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
+ROLE_ACTIVITY_KEYWORDS = {
+    "FORWARDER": (
+        "到港",
+        "提单",
+        "集装箱",
+        "流程",
+        "查验",
+        "放行",
+        "提货",
+        "运输",
+        "配送",
+        "税费",
+        "关税",
+        "container",
+        "process",
+        "inspection",
+        "release",
+        "pickup",
+        "tax",
+        "duty",
+    ),
+    "CUSTOMS": (
+        "海关",
+        "申报",
+        "文件",
+        "单据",
+        "审核",
+        "查验",
+        "放行",
+        "siscomex",
+        "customs",
+        "declaration",
+        "document",
+        "inspection",
+        "release",
+    ),
+    "FINANCE": (
+        "税费",
+        "关税",
+        "费用",
+        "成本",
+        "财务",
+        "付款",
+        "支付",
+        "退款",
+        "借方",
+        "贷方",
+        "余额",
+        "复核",
+        "tax",
+        "duty",
+        "fee",
+        "cost",
+        "finance",
+        "payment",
+        "refund",
+        "debit",
+        "credit",
+        "balance",
+    ),
+}
+
+
+def _activity_matches_roles(activity: dict, roles: set[str]) -> bool:
+    if roles.intersection(ADMIN_ROLES):
+        return True
+
+    text = " ".join(
+        str(activity.get(field) or "")
+        for field in ("activity_type", "title", "description")
+    ).lower()
+    keywords: list[str] = []
+    for role in roles:
+        keywords.extend(ROLE_ACTIVITY_KEYWORDS.get(role, ()))
+
+    return any(keyword.lower() in text for keyword in keywords)
+
 
 @bp.get("/api/dashboard/overview")
 @jwt_required()
 def get_dashboard_overview():
     db = current_app.config["DB"]
     month_prefix = datetime.now().strftime("%Y-%m")
+    current_roles = set(g.current_user.get("roles") or [])
 
     with db.connection() as conn:
         sync_missing_process_records(db, conn)
@@ -45,7 +124,7 @@ def get_dashboard_overview():
 
         activities = db.fetchall(
             conn,
-            "SELECT id, activity_type, title, description, occurred_at FROM customs_activity ORDER BY occurred_at DESC, id DESC LIMIT 10",
+            "SELECT id, activity_type, title, description, occurred_at FROM customs_activity ORDER BY occurred_at DESC, id DESC LIMIT 50",
         )
 
     steps_by_process: dict[int, list[dict]] = {}
@@ -64,6 +143,11 @@ def get_dashboard_overview():
 
     kanban_items = [{"step_no": step_no, "count": step_count_map.get(step_no, 0)} for step_no in range(1, 11)]
     anomaly = status_count.get("INSPECTION", 0)
+
+    role_activities = [
+        item for item in activities
+        if _activity_matches_roles(item, current_roles)
+    ][:10]
 
     return api_response(
         {
@@ -87,7 +171,7 @@ def get_dashboard_overview():
                     "description": item.get("description"),
                     "time": item.get("occurred_at"),
                 }
-                for item in activities
+                for item in role_activities
             ],
         }
     )

@@ -24,7 +24,7 @@ def allowed_file(filename: str) -> bool:
 
 
 @bp.post("/api/files/upload")
-@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
+@jwt_required("SUPER_ADMIN", "CUSTOMS")
 def upload_file():
     if "file" not in request.files:
         return api_response({"error": "缺少 multipart 字段 file"}, 400)
@@ -68,7 +68,7 @@ def upload_file():
 
 
 @bp.post("/api/files/<int:file_id>/parse")
-@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
+@jwt_required("SUPER_ADMIN", "CUSTOMS")
 def parse_existing_file(file_id: int):
     db = current_app.config["DB"]
     auto_audit = is_truthy(request.args.get("auto_audit"), default=True)

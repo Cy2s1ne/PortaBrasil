@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart2,
-  Bell,
   ChevronRight,
   ClipboardCheck,
   Globe,
@@ -29,7 +28,7 @@ const LANG_LABELS = { zh: '中文', en: 'EN', pt: 'PT' };
 const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=e2e8f0';
 
 export default function AppLayout({ lang, onLangChange }) {
-  const { auth, currentUserName, canManageAdmins, canAccessUpload, canAccessCost, canAccessAudit, canAccessReport, logout } = useAuth();
+  const { auth, currentUserName, canManageAdmins, canAccessProcess, canAccessUpload, canAccessCost, canAccessAudit, canAccessReport, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const t = TRANSLATIONS[lang] || TRANSLATIONS.zh;
@@ -45,17 +44,12 @@ export default function AppLayout({ lang, onLangChange }) {
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
   const [globalSearchError, setGlobalSearchError] = useState('');
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [notificationsError, setNotificationsError] = useState('');
   const searchRef = useRef(null);
-  const notificationsRef = useRef(null);
 
   const menuItems = [
     { key: 'home', label: t.nav_home, icon: Home, path: '/' },
     ...(canAccessUpload ? [{ key: 'upload', label: t.nav_upload, icon: UploadCloud, path: '/upload' }] : []),
-    { key: 'process', label: t.nav_process, icon: MapIcon, path: '/process' },
+    ...(canAccessProcess ? [{ key: 'process', label: t.nav_process, icon: MapIcon, path: '/process' }] : []),
     ...(canAccessCost ? [{ key: 'cost', label: t.nav_cost, icon: PieChart, path: '/cost' }] : []),
     ...(canAccessAudit ? [{ key: 'audit', label: t.nav_audit, icon: ClipboardCheck, path: '/audit' }] : []),
     ...(canAccessReport ? [{ key: 'report', label: t.nav_report, icon: BarChart2, path: '/report' }] : []),
@@ -79,38 +73,11 @@ export default function AppLayout({ lang, onLangChange }) {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setGlobalSearchOpen(false);
       }
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
-        setNotificationsOpen(false);
-      }
     };
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
-
-  useEffect(() => {
-    if (!authToken) return;
-
-    let active = true;
-    setNotificationsLoading(true);
-    setNotificationsError('');
-    fetchJSON(`${API_BASE_URL}/api/dashboard/overview`, {
-      headers: buildAuthHeaders(authToken),
-    })
-      .then((data) => {
-        if (active) setNotifications(data?.activities || []);
-      })
-      .catch((err) => {
-        if (active) setNotificationsError(err.message || 'failed');
-      })
-      .finally(() => {
-        if (active) setNotificationsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [authToken]);
 
   useEffect(() => {
     const query = globalSearchInput.trim();
@@ -159,11 +126,6 @@ export default function AppLayout({ lang, onLangChange }) {
     setGlobalSearchInput(query);
     setGlobalSearchOpen(false);
     navigate(`/report?q=${encodeURIComponent(query)}`);
-  };
-
-  const toggleNotifications = () => {
-    setNotificationsOpen((open) => !open);
-    setProfileMenuOpen(false);
   };
 
   const openPasswordModal = () => {
@@ -319,53 +281,6 @@ export default function AppLayout({ lang, onLangChange }) {
                 <Globe className="w-4 h-4" />
                 <span className="text-xs font-semibold">{LANG_LABELS[lang]}</span>
               </button>
-
-              <div ref={notificationsRef} className="relative">
-                <button
-                  type="button"
-                  onClick={toggleNotifications}
-                  aria-label={t.notifications_title}
-                  className="text-gray-400 hover:text-gray-600 transition-colors relative p-1 rounded-lg hover:bg-gray-50"
-                >
-                  <Bell className="w-5 h-5" />
-                  {notifications.some((item) => String(item.type || '').toUpperCase() === 'ALERT') ? (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                  ) : null}
-                </button>
-                {notificationsOpen ? (
-                  <div className="absolute right-0 top-10 w-80 rounded-xl border border-gray-100 bg-white shadow-xl z-30 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                      <div className="text-sm font-semibold text-gray-800">{t.notifications_title}</div>
-                      <span className="text-xs text-gray-400">{notifications.length}</span>
-                    </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {notificationsLoading ? (
-                        <div className="px-4 py-5 text-sm text-gray-500">{t.fetching_rate}</div>
-                      ) : notificationsError ? (
-                        <div className="px-4 py-5 text-sm text-amber-600">{notificationsError}</div>
-                      ) : notifications.length ? (
-                        notifications.map((item) => {
-                          const isAlert = String(item.type || '').toUpperCase() === 'ALERT';
-                          return (
-                            <div key={item.id || `${item.title}-${item.time}`} className="px-4 py-3 border-b border-gray-50 last:border-b-0">
-                              <div className="flex items-start gap-3">
-                                <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${isAlert ? 'bg-red-500' : 'bg-blue-500'}`}></span>
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold text-gray-800 truncate">{item.title || '-'}</div>
-                                  <div className="text-xs text-gray-500 mt-1 leading-relaxed">{item.description || '-'}</div>
-                                  <div className="text-[11px] text-gray-400 mt-1">{item.time || ''}</div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="px-4 py-5 text-sm text-gray-400">{t.noNotifications}</div>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
 
               <button
                 onClick={() => {

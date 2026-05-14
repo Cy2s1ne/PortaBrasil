@@ -419,7 +419,7 @@ class Database:
     def initialize_auth_seed(self, conn) -> None:
         role_rows = [
             ("超级管理员", "SUPER_ADMIN", "系统最高权限"),
-            ("管理员", "ADMIN", "管理系统数据"),
+            ("公司高管", "ADMIN", "查看首页、流程跟踪、报表分析和成本分析"),
             ("货代", "FORWARDER", "货代业务角色"),
             ("报关员", "CUSTOMS", "报关业务角色"),
             ("财务人员", "FINANCE", "财务业务角色"),
@@ -427,6 +427,10 @@ class Database:
         conn.executemany(
             "INSERT OR IGNORE INTO roles (role_name, role_code, description) VALUES (?, ?, ?)",
             role_rows,
+        )
+        conn.execute(
+            "UPDATE roles SET role_name = ?, description = ? WHERE role_code = ?",
+            ("公司高管", "查看首页、流程跟踪、报表分析和成本分析", "ADMIN"),
         )
 
         admin_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")

@@ -8,7 +8,7 @@ import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
 import { useAuth } from '../shared/auth/useAuth';
 
 export default function HomeView() {
-  const { auth, currentUserName } = useAuth();
+  const { auth, currentUserName, canAccessProcess, canViewDashboardTaxes } = useAuth();
   const navigate = useNavigate();
   const t = useT();
   const authToken = auth?.access_token;
@@ -81,7 +81,7 @@ export default function HomeView() {
 
   const statCards = [
     { titleKey: 'stat_inProgress', value: stats.in_progress || 0, icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { titleKey: 'stat_taxes', value: formatCurrencyBRL(stats.taxes_due), icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-50' },
+    ...(canViewDashboardTaxes ? [{ titleKey: 'stat_taxes', value: formatCurrencyBRL(stats.taxes_due), icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-50' }] : []),
     { titleKey: 'stat_anomaly', value: stats.anomaly || 0, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
     { titleKey: 'stat_done', value: stats.done_month || 0, icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
   ];
@@ -102,7 +102,7 @@ export default function HomeView() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className={`grid grid-cols-1 ${canViewDashboardTaxes ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
         {statCards.map((stat, i) => (
           <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
             <div className={`p-4 rounded-xl ${stat.bg}`}>
@@ -116,26 +116,28 @@ export default function HomeView() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="mb-5">
-          <h3 className="text-lg font-bold text-gray-800">{t.kanban_title}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">{t.kanban_desc}</p>
-        </div>
-        <div className="space-y-3">
-          {renderRow(cols.slice(0, 5))}
-          {renderRow(cols.slice(5, 10))}
-        </div>
-        <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-sm">
-          <div className="flex space-x-6">
-            <span className="text-gray-500">{t.kanban_total}<span className="font-bold text-gray-800">{kanban.total || 0}</span> {t.kanban_unit}</span>
-            <span className="text-gray-500">{t.kanban_normal}<span className="font-bold text-gray-800">{kanban.normal || 0}</span></span>
-            <span className="text-red-500 font-medium">{t.kanban_anomaly_label}<span className="font-bold">{kanban.anomaly || 0}</span></span>
+      {canAccessProcess ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="mb-5">
+            <h3 className="text-lg font-bold text-gray-800">{t.kanban_title}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t.kanban_desc}</p>
           </div>
-          <button className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center">
-            {t.kanban_viewAll} <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-          </button>
+          <div className="space-y-3">
+            {renderRow(cols.slice(0, 5))}
+            {renderRow(cols.slice(5, 10))}
+          </div>
+          <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-sm">
+            <div className="flex space-x-6">
+              <span className="text-gray-500">{t.kanban_total}<span className="font-bold text-gray-800">{kanban.total || 0}</span> {t.kanban_unit}</span>
+              <span className="text-gray-500">{t.kanban_normal}<span className="font-bold text-gray-800">{kanban.normal || 0}</span></span>
+              <span className="text-red-500 font-medium">{t.kanban_anomaly_label}<span className="font-bold">{kanban.anomaly || 0}</span></span>
+            </div>
+            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center">
+              {t.kanban_viewAll} <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-lg font-bold text-gray-800 mb-6 px-2">{t.activity_title}</h3>

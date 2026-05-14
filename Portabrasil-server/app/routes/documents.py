@@ -8,7 +8,7 @@ bp = Blueprint("documents_api", __name__)
 
 
 @bp.post("/api/documents/from-text")
-@jwt_required("SUPER_ADMIN", "ADMIN", "CUSTOMS")
+@jwt_required("SUPER_ADMIN", "CUSTOMS")
 def create_document_from_text():
     payload = request.get_json(silent=True) or {}
     raw_text = payload.get("raw_text") or payload.get("content") or payload.get("text")

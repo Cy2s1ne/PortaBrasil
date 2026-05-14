@@ -17,15 +17,17 @@ export function AuthProvider({ children }) {
   const isLoggedIn = Boolean(auth?.access_token);
   const currentUserName = auth?.user?.real_name || auth?.user?.username || '';
   const currentRoles = useMemo(() => auth?.user?.roles || [], [auth?.user?.roles]);
-  const canManageAdmins = currentRoles.includes('SUPER_ADMIN') || currentRoles.includes('ADMIN');
+  const canManageAdmins = currentRoles.includes('SUPER_ADMIN');
   const hasAnyRole = useCallback(
     (allowedRoles) => currentRoles.some((role) => allowedRoles.includes(role)),
     [currentRoles],
   );
-  const canAccessUpload = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMS']);
+  const canAccessProcess = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FORWARDER']);
+  const canAccessUpload = hasAnyRole(['SUPER_ADMIN', 'CUSTOMS']);
   const canAccessCost = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FINANCE']);
-  const canAccessAudit = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FINANCE']);
-  const canAccessReport = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FORWARDER']);
+  const canAccessAudit = hasAnyRole(['SUPER_ADMIN', 'FINANCE']);
+  const canAccessReport = hasAnyRole(['SUPER_ADMIN', 'ADMIN']);
+  const canViewDashboardTaxes = hasAnyRole(['SUPER_ADMIN', 'ADMIN', 'FORWARDER']);
 
   useEffect(() => {
     if (!auth?.access_token) {
@@ -94,10 +96,12 @@ export function AuthProvider({ children }) {
     currentUserName,
     currentRoles,
     canManageAdmins,
+    canAccessProcess,
     canAccessUpload,
     canAccessCost,
     canAccessAudit,
     canAccessReport,
+    canViewDashboardTaxes,
     hasAnyRole,
     login,
     logout,

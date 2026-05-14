@@ -163,7 +163,7 @@ def update_current_user_password():
 
 
 @bp.post("/api/auth/users")
-@jwt_required("SUPER_ADMIN", "ADMIN")
+@jwt_required("SUPER_ADMIN")
 def create_user():
     payload = request.get_json(silent=True) or {}
     username = str(payload.get("username") or "").strip()

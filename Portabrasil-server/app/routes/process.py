@@ -9,8 +9,9 @@ from services import sync_missing_process_records
 
 bp = Blueprint("process_api", __name__)
 
-PROCESS_CONTROL_ROLES = ("SUPER_ADMIN", "ADMIN", "CUSTOMS", "FINANCE", "FORWARDER")
-ADMIN_ROLES = {"SUPER_ADMIN", "ADMIN"}
+PROCESS_ACCESS_ROLES = ("SUPER_ADMIN", "ADMIN", "FORWARDER")
+PROCESS_CONTROL_ROLES = ("SUPER_ADMIN",)
+ADMIN_ROLES = {"SUPER_ADMIN"}
 STEP_ROLE_MAP = {
     1: ("FORWARDER",),
     2: ("CUSTOMS",),
@@ -56,9 +57,7 @@ def _current_roles() -> set[str]:
 
 def _can_control_step(step_no: int) -> bool:
     roles = _current_roles()
-    if roles.intersection(ADMIN_ROLES):
-        return True
-    return bool(roles.intersection(STEP_ROLE_MAP.get(step_no, ())))
+    return bool(roles.intersection(ADMIN_ROLES))
 
 
 def _build_control_permissions(steps: list[dict[str, Any]]) -> dict[str, Any]:
@@ -80,7 +79,7 @@ def _build_control_permissions(steps: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 @bp.get("/api/process/records")
-@jwt_required()
+@jwt_required(*PROCESS_ACCESS_ROLES)
 def list_process_records():
     db = current_app.config["DB"]
     limit = min(int(request.args.get("limit", 20)), 100)
@@ -152,7 +151,7 @@ def list_process_records():
 
 
 @bp.get("/api/process/records/<int:record_id>")
-@jwt_required()
+@jwt_required(*PROCESS_ACCESS_ROLES)
 def get_process_record(record_id: int):
     db = current_app.config["DB"]
     with db.connection() as conn:

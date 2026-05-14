@@ -121,7 +121,7 @@ export default function CostAnalysisView() {
     setCalcError('');
   };
 
-  const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors";
+  const inputCls = "w-full min-w-0 h-10 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors";
   const labelCls = "block text-xs font-medium text-gray-500 mb-1.5";
   const sectionCls = "bg-white rounded-2xl shadow-sm border border-gray-100 p-6";
   const topTotal = Number(overview?.total_import_cost || 0);
@@ -169,7 +169,7 @@ export default function CostAnalysisView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(380px,0.82fr)] gap-6">
         <div className="space-y-4">
           <div className={sectionCls}>
             <div className="flex items-center mb-4">
@@ -189,7 +189,7 @@ export default function CostAnalysisView() {
           </div>
 
           <div className={sectionCls}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3 mb-4">
               <div className="flex items-center">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2">2</div>
                 <h3 className="font-semibold text-gray-800">{t.product_info_section}</h3>
@@ -200,13 +200,16 @@ export default function CostAnalysisView() {
             </div>
             <div className="space-y-2.5">
               {products.map((p, i) => (
-                <div key={i} className="flex items-center space-x-2">
-                  <input type="text" placeholder={t.product_name_ph} value={p.name} onChange={(e) => updateProduct(i, 'name', e.target.value)} className={`${inputCls} flex-1`} />
-                  <input type="number" placeholder={t.qty_ph} value={p.qty} onChange={(e) => updateProduct(i, 'qty', e.target.value)} className={`${inputCls} w-24`} />
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_7.5rem_auto] gap-2 items-center">
+                  <input type="text" placeholder={t.product_name_ph} value={p.name} onChange={(e) => updateProduct(i, 'name', e.target.value)} className={inputCls} />
+                  <input type="number" placeholder={t.qty_ph} value={p.qty} onChange={(e) => updateProduct(i, 'qty', e.target.value)} className={inputCls} />
                   {products.length > 1 && (
                     <button onClick={() => removeProduct(i)} className="p-2 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  )}
+                  {products.length === 1 && (
+                    <div className="w-8" aria-hidden="true"></div>
                   )}
                 </div>
               ))}
@@ -218,14 +221,16 @@ export default function CostAnalysisView() {
               <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2">3</div>
               <h3 className="font-semibold text-gray-800">{t.additional_fees_section}</h3>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-5 items-start">
               <div>
-                <label className={labelCls}>{t.usd_amount}</label>
+                <div className="h-6 flex items-center mb-1.5">
+                  <label className="text-xs font-medium text-gray-500">{t.usd_amount}</label>
+                </div>
                 <input type="number" placeholder="0.00" value={usdAmount} onChange={(e) => setUsdAmount(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={`${labelCls} mb-0`}>{t.usd_rate_label}</label>
+                <div className="h-6 flex items-center justify-between gap-3 mb-1.5">
+                  <label className="text-xs font-medium text-gray-500">{t.usd_rate_label}</label>
                   <button
                     onClick={fetchRate}
                     disabled={rateLoading}
@@ -254,14 +259,16 @@ export default function CostAnalysisView() {
                   )}
                 </div>
                 {rateUpdatedAt && !rateError && (
-                  <div className="text-[10px] text-gray-400 mt-1">{t.updated_at}{rateUpdatedAt}</div>
+                  <div className="text-[10px] text-gray-400 mt-1.5 leading-none">{t.updated_at}{rateUpdatedAt}</div>
                 )}
                 {rateError && (
-                  <div className="text-[10px] text-orange-400 mt-1">{rateError}</div>
+                  <div className="text-[10px] text-orange-400 mt-1.5 leading-none">{rateError}</div>
                 )}
               </div>
               <div>
-                <label className={labelCls}>{t.other_fees_label}</label>
+                <div className="h-6 flex items-center mb-1.5">
+                  <label className="text-xs font-medium text-gray-500">{t.other_fees_label}</label>
+                </div>
                 <input type="number" placeholder="0.00" value={otherFees} onChange={(e) => setOtherFees(e.target.value)} className={inputCls} />
               </div>
             </div>

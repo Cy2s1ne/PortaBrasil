@@ -7,7 +7,7 @@ from app.core.responses import api_response
 from app.services.audit_finance_service import run_audit_review, run_finance_review
 
 bp = Blueprint("ai_review_api", __name__)
-AI_REVIEW_ROLES = ("SUPER_ADMIN", "ADMIN", "FINANCE")
+AI_REVIEW_ROLES = ("SUPER_ADMIN", "FINANCE")
 
 
 def _loads_json(raw):

@@ -44,7 +44,7 @@ def _serialize_record(row: dict[str, Any]) -> dict[str, Any]:
 
 
 @bp.get("/api/reports/records")
-@jwt_required("SUPER_ADMIN", "ADMIN", "FORWARDER")
+@jwt_required("SUPER_ADMIN", "ADMIN")
 def list_report_records():
     db = current_app.config["DB"]
     limit = min(int(request.args.get("limit", 20)), 100)
@@ -86,7 +86,7 @@ def list_report_records():
 
 
 @bp.get("/api/reports/records/<int:record_id>")
-@jwt_required("SUPER_ADMIN", "ADMIN", "FORWARDER")
+@jwt_required("SUPER_ADMIN", "ADMIN")
 def get_report_record(record_id: int):
     db = current_app.config["DB"]
     with db.connection() as conn:

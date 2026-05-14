@@ -497,7 +497,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- 角色
 INSERT INTO roles (role_name, role_code, description) VALUES
 ('超级管理员', 'SUPER_ADMIN', '系统最高权限'),
-('管理员', 'ADMIN', '管理系统数据'),
+('公司高管', 'ADMIN', '查看首页、流程跟踪、报表分析和成本分析'),
 ('货代', 'FORWARDER', '货代业务角色'),
 ('报关员', 'CUSTOMS', '报关业务角色'),
 ('财务人员', 'FINANCE', '财务业务角色');
