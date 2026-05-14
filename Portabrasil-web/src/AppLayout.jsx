@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import SidebarItem from './components/navigation/SidebarItem';
-import { useAuth } from './shared/auth/AuthContext';
+import { useAuth } from './shared/auth/useAuth';
 import { API_BASE_URL } from './shared/config/api';
 import { LanguageContext } from './shared/i18n/language-context';
 import { TRANSLATIONS } from './shared/i18n/translations';

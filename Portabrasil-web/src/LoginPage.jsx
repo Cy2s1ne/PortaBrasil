@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Anchor, Globe2 } from "lucide-react";
 import { AnimatedCharacters } from "./animated-characters";
 import { InteractiveHoverButton } from "./interactive-hover-button";
-import { useAuth } from "./shared/auth/AuthContext";
+import { useAuth } from "./shared/auth/useAuth";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
 const LANGS = ["zh", "en", "pt"];

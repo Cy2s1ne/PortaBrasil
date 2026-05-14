@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Circle, Download, Edit2, RotateCcw, Search, X } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
-import { useAuth } from '../shared/auth/AuthContext';
+import { useAuth } from '../shared/auth/useAuth';
 
 const PAGE_SIZE = 10;
 const EMPTY_PROCESS_PERMISSIONS = {
@@ -55,7 +55,7 @@ export default function ProcessTrackingView() {
     setProcessPermissions(data?.control_permissions || EMPTY_PROCESS_PERMISSIONS);
   };
 
-  const loadList = async () => {
+  const loadList = useCallback(async () => {
     if (!authToken) return;
     setListLoading(true);
     setListError('');
@@ -76,11 +76,11 @@ export default function ProcessTrackingView() {
     } finally {
       setListLoading(false);
     }
-  };
+  }, [authToken, page, query]);
 
   useEffect(() => {
     loadList();
-  }, [authToken, page, query]);
+  }, [loadList]);
 
   const loadDetail = async (recordId) => {
     if (!authToken) return;

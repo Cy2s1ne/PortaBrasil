@@ -12,7 +12,7 @@ import {
 import { API_BASE_URL } from '../shared/config/api';
 import { LanguageContext } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
-import { useAuth } from '../shared/auth/AuthContext';
+import { useAuth } from '../shared/auth/useAuth';
 
 const COPY = {
   zh: {

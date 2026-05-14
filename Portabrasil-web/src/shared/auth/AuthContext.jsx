@@ -1,13 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AUTH_STORAGE_KEY, clearAuthStorage, persistAuth, readStoredAuth } from './storage';
 import { API_BASE_URL } from '../config/api';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './context';
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(() => readStoredAuth());
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => Boolean(readStoredAuth()?.access_token));
   const navigate = useNavigate();
   const authRef = useRef(auth);
 
@@ -17,7 +16,7 @@ export function AuthProvider({ children }) {
 
   const isLoggedIn = Boolean(auth?.access_token);
   const currentUserName = auth?.user?.real_name || auth?.user?.username || '';
-  const currentRoles = auth?.user?.roles || [];
+  const currentRoles = useMemo(() => auth?.user?.roles || [], [auth?.user?.roles]);
   const canManageAdmins = currentRoles.includes('SUPER_ADMIN') || currentRoles.includes('ADMIN');
   const hasAnyRole = useCallback(
     (allowedRoles) => currentRoles.some((role) => allowedRoles.includes(role)),
@@ -30,11 +29,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!auth?.access_token) {
-      setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
 
     let active = true;
 
@@ -88,6 +84,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     clearAuthStorage();
     setAuth(null);
+    setIsLoading(false);
   }, []);
 
   const value = {
@@ -107,10 +104,4 @@ export function AuthProvider({ children }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 }

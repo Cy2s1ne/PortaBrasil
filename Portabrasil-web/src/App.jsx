@@ -3,7 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './AppLayout';
 import LoginPage from './LoginPage';
 import { AdminManagementView, AuditReviewView, CostAnalysisView, HomeView, ProcessTrackingView, ReportView, UploadView } from './views';
-import { AuthProvider, useAuth } from './shared/auth/AuthContext';
+import { AuthProvider } from './shared/auth/AuthContext';
+import { useAuth } from './shared/auth/useAuth';
 import RequireAuth from './shared/auth/RequireAuth';
 
 function LoginRoute({ lang, onLangChange }) {

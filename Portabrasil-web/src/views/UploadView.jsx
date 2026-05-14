@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, MoreVertical, UploadCloud } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatFileSize } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
-import { useAuth } from '../shared/auth/AuthContext';
+import { useAuth } from '../shared/auth/useAuth';
 
 const formatAgentSource = (source) => {
   const value = String(source || '').toUpperCase();
@@ -25,7 +25,7 @@ export default function UploadView() {
 
   const authToken = auth?.access_token;
 
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     if (!authToken) return;
     setLoading(true);
     setError('');
@@ -39,11 +39,11 @@ export default function UploadView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authToken]);
 
   useEffect(() => {
     loadFiles();
-  }, [authToken]);
+  }, [loadFiles]);
 
   const handlePickFile = () => {
     if (fileInputRef.current) fileInputRef.current.click();

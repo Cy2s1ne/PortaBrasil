@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatCurrencyBRL } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
-import { useAuth } from '../shared/auth/AuthContext';
+import { useAuth } from '../shared/auth/useAuth';
 
 export default function HomeView() {
   const { auth, currentUserName } = useAuth();

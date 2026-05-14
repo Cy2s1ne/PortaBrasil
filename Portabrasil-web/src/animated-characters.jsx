@@ -49,7 +49,7 @@ function skewAt(x, y, skewDeg, children) {
   );
 }
 
-export function AnimatedCharacters({ isTyping = false, showPassword = false, passwordLength = 0 }) {
+export function AnimatedCharacters({ showPassword = false, passwordLength = 0 }) {
   const purpleRef = useRef(null);
   const blackRef = useRef(null);
   const orangeRef = useRef(null);
@@ -57,17 +57,30 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
   const sceneRef = useRef(null);
 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [isLookingAtEachOther, setIsLookingAtEachOther] = useState(false);
-  const [isPurplePeeking, setIsPurplePeeking] = useState(false);
   const [blinkProgress, setBlinkProgress] = useState(0);
-  const [purpleRectProgress, setPurpleRectProgress] = useState(0);
-
-  const [pointer, setPointer] = useState({ x: 0, y: 0 });
+  const [positions, setPositions] = useState({
+    purple: { faceX: 0, faceY: 0 },
+    black: { faceX: 0, faceY: 0 },
+    orange: { faceX: 0, faceY: 0 },
+    yellow: { faceX: 0, faceY: 0 },
+  });
 
   useEffect(() => {
+    const calculatePosition = (ref, pointer, intensity = 1) => {
+      if (!ref.current) return { faceX: 0, faceY: 0 };
+      const rect = ref.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 3;
+      const deltaX = pointer.x - centerX;
+      const deltaY = pointer.y - centerY;
+      const faceX = Math.max(-10, Math.min(10, (deltaX / 30) * intensity));
+      const faceY = Math.max(-6, Math.min(6, (deltaY / 40) * intensity));
+      return { faceX, faceY };
+    };
+
     const handleMouseMove = (e) => {
-      setPointer({ x: e.clientX, y: e.clientY });
       if (!sceneRef.current) return;
+      const pointer = { x: e.clientX, y: e.clientY };
       const rect = sceneRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
@@ -79,6 +92,12 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
         x: Math.cos(angle) * distance,
         y: Math.sin(angle) * distance,
       });
+      setPositions({
+        purple: calculatePosition(purpleRef, pointer),
+        black: calculatePosition(blackRef, pointer),
+        orange: calculatePosition(orangeRef, pointer, 1),
+        yellow: calculatePosition(yellowRef, pointer, 0.65),
+      });
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
@@ -86,7 +105,8 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
 
   // showPassword 切换时重置眨眼，让眼睛保持完全睁开状态过渡，避免半闭状态闪烁
   useEffect(() => {
-    setBlinkProgress(0);
+    const rafId = requestAnimationFrame(() => setBlinkProgress(0));
+    return () => cancelAnimationFrame(rafId);
   }, [showPassword]);
 
   useEffect(() => {
@@ -122,72 +142,12 @@ export function AnimatedCharacters({ isTyping = false, showPassword = false, pas
     return () => clearTimeout(blinkTimer);
   }, []);
 
-  useEffect(() => {
-    let rafId;
-    let start = null;
-    const DURATION = 450; // 稍微延长，让 peek/shrink 更平滑
-    const target = showPassword ? 1 : 0;
-    const fromVal = purpleRectProgress;
-
-    const animate = (ts) => {
-      if (!start) start = ts;
-      const t = Math.min(1, (ts - start) / DURATION);
-      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      // 正确的 lerp: 从 fromVal 插值到 target
-      setPurpleRectProgress(fromVal + (target - fromVal) * eased);
-      if (t < 1) rafId = requestAnimationFrame(animate);
-    };
-    rafId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafId);
-  }, [showPassword]);
-
-  useEffect(() => {
-    if (isTyping) {
-      setIsLookingAtEachOther(true);
-      const timer = setTimeout(() => setIsLookingAtEachOther(false), 600);
-      return () => clearTimeout(timer);
-    }
-    setIsLookingAtEachOther(false);
-  }, [isTyping]);
-
-  useEffect(() => {
-    if (passwordLength > 0 && showPassword) {
-      const schedulePeek = () => {
-        const t = setTimeout(() => {
-          setIsPurplePeeking(true);
-          setTimeout(() => {
-            setIsPurplePeeking(false);
-            schedulePeek();
-          }, 600 + Math.random() * 400);
-        }, Math.random() * 4000 + 3000);
-        return t;
-      };
-      const t = schedulePeek();
-      return () => clearTimeout(t);
-    }
-    setIsPurplePeeking(false);
-  }, [passwordLength, showPassword]);
-
-  const calculatePosition = (ref, intensity = 1) => {
-    if (!ref.current) return { faceX: 0, faceY: 0, bodySkew: 0 };
-    const rect = ref.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 3;
-    const deltaX = pointer.x - centerX;
-    const deltaY = pointer.y - centerY;
-    const faceX = Math.max(-10, Math.min(10, (deltaX / 30) * intensity));
-    const faceY = Math.max(-6, Math.min(6, (deltaY / 40) * intensity));
-    const bodySkew = Math.max(-5, Math.min(5, -(deltaX / 90) * intensity));
-    return { faceX, faceY, bodySkew };
-  };
-
-  const purplePos = calculatePosition(purpleRef);
-  const blackPos = calculatePosition(blackRef);
-  const orangePos = calculatePosition(orangeRef, 1);
-  const yellowPos = calculatePosition(yellowRef, 0.65);
+  const purplePos = positions.purple;
+  const blackPos = positions.black;
+  const orangePos = positions.orange;
+  const yellowPos = positions.yellow;
 
   const peek = passwordLength > 0 && showPassword;
-  const isHidingPassword = passwordLength > 0 && !showPassword;
 
   /**
    * 显示密码：身体不倾斜；视线避开（参考图）

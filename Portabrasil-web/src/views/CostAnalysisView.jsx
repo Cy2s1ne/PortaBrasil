@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Calculator, Download, PieChart, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatCurrencyBRL } from '../shared/utils/format';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
-import { useAuth } from '../shared/auth/AuthContext';
+import { useAuth } from '../shared/auth/useAuth';
 
 export default function CostAnalysisView() {
   const { auth } = useAuth();
@@ -24,7 +24,7 @@ export default function CostAnalysisView() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
 
-  const fetchOverview = async () => {
+  const fetchOverview = useCallback(async () => {
     if (!authToken) return;
     try {
       const data = await fetchJSON(`${API_BASE_URL}/api/cost/overview`, {
@@ -34,9 +34,9 @@ export default function CostAnalysisView() {
     } catch (err) {
       setCalcError(err.message || 'failed');
     }
-  };
+  }, [authToken]);
 
-  const fetchRate = async () => {
+  const fetchRate = useCallback(async () => {
     if (!authToken) return;
     setRateLoading(true);
     setRateError('');
@@ -54,12 +54,12 @@ export default function CostAnalysisView() {
     } finally {
       setRateLoading(false);
     }
-  };
+  }, [authToken, t.rate_network_failed]);
 
   useEffect(() => {
     fetchOverview();
     fetchRate();
-  }, [authToken]);
+  }, [fetchOverview, fetchRate]);
 
   const addProduct = () => setProducts((prev) => [...prev, { name: '', qty: '' }]);
   const removeProduct = (i) => setProducts((prev) => prev.filter((_, idx) => idx !== i));
@@ -373,4 +373,3 @@ export default function CostAnalysisView() {
     </div>
   );
 }
-

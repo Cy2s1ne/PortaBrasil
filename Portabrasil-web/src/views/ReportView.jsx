@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { buildAuthHeaders, fetchJSON } from '../shared/utils/http';
 import { formatCurrencyBRL } from '../shared/utils/format';
-import { useAuth } from '../shared/auth/AuthContext';
+import { useAuth } from '../shared/auth/useAuth';
 
 const PAGE_SIZE = 10;
 
