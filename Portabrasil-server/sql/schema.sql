@@ -335,6 +335,7 @@ DROP TABLE IF EXISTS customs_cost_record;
 
 CREATE TABLE customs_cost_record (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    business_id BIGINT UNSIGNED NULL COMMENT '可选关联 customs_business.id',
     process_record_id BIGINT NULL COMMENT '可选关联 customs_process_record.id',
     record_no VARCHAR(64) NOT NULL COMMENT '成本记录编号',
     customs_fee DECIMAL(18,4) NOT NULL DEFAULT 0 COMMENT '海关总费用',
@@ -351,8 +352,12 @@ CREATE TABLE customs_cost_record (
     created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_record_no (record_no),
+    KEY idx_business_id (business_id),
     KEY idx_process_record_id (process_record_id),
     KEY idx_created_time (created_time),
+    CONSTRAINT fk_cost_record_business
+        FOREIGN KEY (business_id) REFERENCES customs_business(id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_cost_record_process
         FOREIGN KEY (process_record_id) REFERENCES customs_process_record(id)
         ON DELETE SET NULL ON UPDATE CASCADE,
@@ -554,10 +559,11 @@ INSERT INTO customs_activity (activity_type, title, description) VALUES
 
 -- 成本分析示例记录
 INSERT INTO customs_cost_record (
-    process_record_id, record_no, customs_fee, refund_fee, usd_amount, usd_rate, other_fees,
+    business_id, process_record_id, record_no, customs_fee, refund_fee, usd_amount, usd_rate, other_fees,
     total_qty, total_base, per_unit_cost, currency, note, created_by
 )
 SELECT
+    p.business_id,
     p.id,
     CONCAT('COST-', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')),
     125000.0000,

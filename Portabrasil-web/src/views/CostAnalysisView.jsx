@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Calculator, Download, PieChart, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Calculator, ClipboardList, PieChart, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { API_BASE_URL } from '../shared/config/api';
 import { useT } from '../shared/i18n/language-context';
 import { formatCurrencyBRL } from '../shared/utils/format';
@@ -21,8 +21,14 @@ export default function CostAnalysisView() {
   const [products, setProducts] = useState([{ name: '', qty: '' }]);
   const [result, setResult] = useState(null);
   const [overview, setOverview] = useState(null);
+  const [businesses, setBusinesses] = useState([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [businessContext, setBusinessContext] = useState(null);
+  const [costRecords, setCostRecords] = useState([]);
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   const fetchOverview = useCallback(async () => {
     if (!authToken) return;
@@ -56,10 +62,68 @@ export default function CostAnalysisView() {
     }
   }, [authToken, t.rate_network_failed]);
 
+  const loadBusinesses = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/business?limit=100&offset=0`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setBusinesses(data?.items || []);
+    } catch (err) {
+      setCalcError(err.message || 'failed');
+    }
+  }, [authToken]);
+
+  const loadCostRecords = useCallback(async (businessId = '') => {
+    if (!authToken) return;
+    const query = businessId ? `?business_id=${businessId}&limit=8&offset=0` : '?limit=8&offset=0';
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/cost/records${query}`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      setCostRecords(data?.items || []);
+    } catch (err) {
+      setCalcError(err.message || 'failed');
+    }
+  }, [authToken]);
+
+  const loadBusinessContext = useCallback(async (businessId) => {
+    if (!authToken || !businessId) {
+      setBusinessContext(null);
+      return;
+    }
+    setCalcError('');
+    setSaveMessage('');
+    try {
+      const data = await fetchJSON(`${API_BASE_URL}/api/cost/business/${businessId}/context`, {
+        headers: buildAuthHeaders(authToken),
+      });
+      const input = data?.suggested_input || {};
+      setBusinessContext(data || null);
+      setCustomsFee(String(input.customs_fee ?? ''));
+      setRefundFee(String(input.refund_fee ?? ''));
+      setUsdAmount(String(input.usd_amount ?? ''));
+      if (Number(input.usd_rate || 0) > 0) {
+        setUsdRate(String(input.usd_rate));
+      }
+      setOtherFees(String(input.other_fees ?? ''));
+      setProducts((input.products || [{ name: '', qty: '' }]).map((p) => ({
+        name: p.name || '',
+        qty: String(p.qty ?? ''),
+      })));
+      setResult(null);
+      loadCostRecords(businessId);
+    } catch (err) {
+      setCalcError(err.message || 'failed');
+    }
+  }, [authToken, loadCostRecords]);
+
   useEffect(() => {
     fetchOverview();
     fetchRate();
-  }, [fetchOverview, fetchRate]);
+    loadBusinesses();
+    loadCostRecords();
+  }, [fetchOverview, fetchRate, loadBusinesses, loadCostRecords]);
 
   const addProduct = () => setProducts((prev) => [...prev, { name: '', qty: '' }]);
   const removeProduct = (i) => setProducts((prev) => prev.filter((_, idx) => idx !== i));
@@ -68,42 +132,50 @@ export default function CostAnalysisView() {
 
   const fmt = (num) => Number(num || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
+  const buildPayload = () => ({
+    business_id: selectedBusinessId ? Number(selectedBusinessId) : undefined,
+    process_record_id: businessContext?.suggested_input?.process_record_id || undefined,
+    customs_fee: Number(customsFee || 0),
+    refund_fee: Number(refundFee || 0),
+    usd_amount: Number(usdAmount || 0),
+    usd_rate: Number(usdRate || 0),
+    other_fees: Number(otherFees || 0),
+    products: products.map((p) => ({ name: p.name || '', qty: Number(p.qty || 0) })),
+  });
+
+  const applyResult = (data) => {
+    setResult({
+      cf: Number(data?.input?.customs_fee || 0),
+      rf: Number(data?.input?.refund_fee || 0),
+      ua: Number(data?.input?.usd_amount || 0),
+      ur: Number(data?.input?.usd_rate || 0),
+      of: Number(data?.input?.other_fees || 0),
+      netCustoms: Number(data?.summary?.net_customs || 0),
+      usdInBrl: Number(data?.summary?.usd_in_brl || 0),
+      totalBase: Number(data?.summary?.total_base || 0),
+      totalQty: Number(data?.summary?.total_qty || 0),
+      perUnitCost: Number(data?.summary?.per_unit_cost || 0),
+      productCosts: (data?.product_costs || []).map((p) => ({
+        name: p.name || t.unnamed_product,
+        qty: Number(p.qty || 0),
+        cost: Number(p.cost || 0),
+        unitCost: Number(p.unit_cost || 0),
+      })),
+    });
+  };
+
   const calculate = async () => {
     if (!authToken) return;
     setCalcLoading(true);
     setCalcError('');
+    setSaveMessage('');
     try {
-      const payload = {
-        customs_fee: Number(customsFee || 0),
-        refund_fee: Number(refundFee || 0),
-        usd_amount: Number(usdAmount || 0),
-        usd_rate: Number(usdRate || 0),
-        other_fees: Number(otherFees || 0),
-        products: products.map((p) => ({ name: p.name || '', qty: Number(p.qty || 0) })),
-      };
       const data = await fetchJSON(`${API_BASE_URL}/api/cost/calculate`, {
         method: 'POST',
         headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildPayload()),
       });
-      setResult({
-        cf: Number(data?.input?.customs_fee || 0),
-        rf: Number(data?.input?.refund_fee || 0),
-        ua: Number(data?.input?.usd_amount || 0),
-        ur: Number(data?.input?.usd_rate || 0),
-        of: Number(data?.input?.other_fees || 0),
-        netCustoms: Number(data?.summary?.net_customs || 0),
-        usdInBrl: Number(data?.summary?.usd_in_brl || 0),
-        totalBase: Number(data?.summary?.total_base || 0),
-        totalQty: Number(data?.summary?.total_qty || 0),
-        perUnitCost: Number(data?.summary?.per_unit_cost || 0),
-        productCosts: (data?.product_costs || []).map((p) => ({
-          name: p.name || t.unnamed_product,
-          qty: Number(p.qty || 0),
-          cost: Number(p.cost || 0),
-          unitCost: Number(p.unit_cost || 0),
-        })),
-      });
+      applyResult(data);
     } catch (err) {
       setCalcError(err.message || 'failed');
     } finally {
@@ -111,20 +183,61 @@ export default function CostAnalysisView() {
     }
   };
 
+  const saveCostRecord = async () => {
+    if (!authToken || saveLoading) return;
+    setSaveLoading(true);
+    setSaveMessage('');
+    setCalcError('');
+    try {
+      const payload = {
+        ...buildPayload(),
+        note: selectedBusinessId ? t.cost_record_note_auto : t.cost_record_note_manual,
+      };
+      const data = await fetchJSON(`${API_BASE_URL}/api/cost/records`, {
+        method: 'POST',
+        headers: buildAuthHeaders(authToken, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload),
+      });
+      const record = data?.record;
+      setSaveMessage(record?.id ? `${t.cost_save_success} #${record.id}` : t.cost_save_success);
+      loadCostRecords(selectedBusinessId);
+      fetchOverview();
+    } catch (err) {
+      setSaveMessage(err.message || 'failed');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleBusinessChange = (businessId) => {
+    setSelectedBusinessId(businessId);
+    loadBusinessContext(businessId);
+    if (!businessId) {
+      setBusinessContext(null);
+      loadCostRecords();
+    }
+  };
+
   const reset = () => {
     setResult(null);
+    setSelectedBusinessId('');
+    setBusinessContext(null);
     setCustomsFee('');
     setRefundFee('');
     setUsdAmount('');
     setOtherFees('');
     setProducts([{ name: '', qty: '' }]);
     setCalcError('');
+    setSaveMessage('');
+    loadCostRecords();
   };
 
   const inputCls = "w-full min-w-0 h-10 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors";
   const labelCls = "block text-xs font-medium text-gray-500 mb-1.5";
   const sectionCls = "bg-white rounded-2xl shadow-sm border border-gray-100 p-6";
   const topTotal = Number(overview?.total_import_cost || 0);
+  const selectedBusiness = businesses.find((item) => String(item.id) === String(selectedBusinessId));
+  const sourceSummary = businessContext?.source_summary || {};
   const majorTaxDetails = (overview?.major_tax_details || []).length ? (overview?.major_tax_details || []) : [
     { label: 'II (进口税)', amount: 520000, percent: 42 },
     { label: 'IPI (工业产品税)', amount: 310000, percent: 25 },
@@ -167,6 +280,49 @@ export default function CostAnalysisView() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-blue-600 mb-2">
+              <ClipboardList className="w-5 h-5" />
+              <span className="text-xs font-semibold uppercase tracking-wider">{t.cost_business_link_title}</span>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">{selectedBusiness?.s_ref || t.cost_select_business_title}</h2>
+            <p className="text-sm text-gray-500 mt-1">{selectedBusiness ? `${selectedBusiness.customer_name || '-'} · ${selectedBusiness.invoice_no || selectedBusiness.n_ref || '-'}` : t.cost_select_business_desc}</p>
+          </div>
+          <div className="w-full xl:w-[28rem]">
+            <label className={labelCls}>{t.cost_business_select_label}</label>
+            <select
+              value={selectedBusinessId}
+              onChange={(e) => handleBusinessChange(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">{t.cost_business_select_placeholder}</option>
+              {businesses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  #{item.id} · {item.s_ref || '-'} · {item.customer_name || '-'}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {businessContext ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+            {[
+              { label: t.report_total_debit, value: formatCurrencyBRL(sourceSummary.fee_debit_total || sourceSummary.business_total_debit || 0) },
+              { label: t.report_total_credit, value: formatCurrencyBRL(sourceSummary.fee_credit_total || sourceSummary.business_total_credit || 0) },
+              { label: t.report_balance, value: formatCurrencyBRL(sourceSummary.business_balance || 0) },
+              { label: t.bl_number, value: businessContext?.process_record?.bl_no || '-' },
+            ].map((item) => (
+              <div key={item.label} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                <div className="text-xs text-gray-400">{item.label}</div>
+                <div className="text-sm font-semibold text-gray-800 mt-1 truncate">{item.value}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(380px,0.82fr)] gap-6">
@@ -369,12 +525,54 @@ export default function CostAnalysisView() {
                 <button onClick={reset} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                   {t.reset}
                 </button>
-                <button className="flex-1 py-2.5 border border-blue-200 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center">
-                  <Download className="w-4 h-4 mr-1.5" /> {t.export_pdf}
+                <button onClick={saveCostRecord} disabled={saveLoading} className="flex-1 py-2.5 border border-blue-200 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center disabled:opacity-60">
+                  <Save className="w-4 h-4 mr-1.5" /> {saveLoading ? t.fetching_rate : t.cost_save_record}
                 </button>
               </div>
+              {saveMessage ? <p className="text-xs text-amber-600">{saveMessage}</p> : null}
             </>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+          <h3 className="font-bold text-gray-800">{t.cost_records_title}</h3>
+          <button type="button" onClick={() => loadCostRecords(selectedBusinessId)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-white">
+            <RefreshCw className="w-3.5 h-3.5" />
+            {t.refresh_rate}
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-gray-500 bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-5 py-3 font-semibold">{t.cost_record_no}</th>
+                <th className="px-5 py-3 font-semibold">{t.report_business_info}</th>
+                <th className="px-5 py-3 font-semibold">{t.total_cost_base_row}</th>
+                <th className="px-5 py-3 font-semibold">{t.per_item_cost}</th>
+                <th className="px-5 py-3 font-semibold">{t.report_data_status}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {costRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-8 text-center text-gray-400">{t.cost_no_records}</td>
+                </tr>
+              ) : costRecords.map((record) => (
+                <tr key={record.id} className="hover:bg-gray-50">
+                  <td className="px-5 py-4 font-semibold text-gray-900">{record.record_no || `#${record.id}`}</td>
+                  <td className="px-5 py-4">
+                    <div className="font-medium text-gray-800">{record.s_ref || record.bl_no || '-'}</div>
+                    <div className="text-xs text-gray-400">{record.customer_name || record.goods_desc || '-'}</div>
+                  </td>
+                  <td className="px-5 py-4 font-semibold text-gray-800">{formatCurrencyBRL(record.total_base || 0)}</td>
+                  <td className="px-5 py-4 text-gray-600">{fmt(record.per_unit_cost || 0)} BRL</td>
+                  <td className="px-5 py-4 text-gray-500">{record.created_time || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -254,6 +254,7 @@ CREATE TABLE IF NOT EXISTS fx_rate_cache (
 
 CREATE TABLE IF NOT EXISTS customs_cost_record (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id INTEGER,
     process_record_id INTEGER,
     record_no TEXT NOT NULL UNIQUE,
     customs_fee TEXT NOT NULL DEFAULT '0',
@@ -269,6 +270,7 @@ CREATE TABLE IF NOT EXISTS customs_cost_record (
     created_by INTEGER,
     created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(business_id) REFERENCES customs_business(id) ON DELETE SET NULL,
     FOREIGN KEY(process_record_id) REFERENCES customs_process_record(id) ON DELETE SET NULL,
     FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -411,10 +413,17 @@ class Database:
 
         with self.connection() as conn:
             conn.executescript(SQLITE_SCHEMA)
+            self.ensure_schema_updates(conn)
             self.initialize_auth_seed(conn)
             self.initialize_process_seed(conn)
             self.initialize_cost_seed(conn)
             self.initialize_summary_seed(conn)
+
+    def ensure_schema_updates(self, conn) -> None:
+        columns = [row["name"] for row in conn.execute("PRAGMA table_info(customs_cost_record)").fetchall()]
+        if "business_id" not in columns:
+            conn.execute("ALTER TABLE customs_cost_record ADD COLUMN business_id INTEGER")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cost_record_business_id ON customs_cost_record(business_id)")
 
     def initialize_auth_seed(self, conn) -> None:
         role_rows = [
@@ -505,16 +514,17 @@ class Database:
         if rows and int(rows[0]) > 0:
             return
 
-        process_row = conn.execute("SELECT id FROM customs_process_record ORDER BY id ASC LIMIT 1").fetchone()
+        process_row = conn.execute("SELECT id, business_id FROM customs_process_record ORDER BY id ASC LIMIT 1").fetchone()
         admin_row = conn.execute("SELECT id FROM users WHERE username = ?", ("admin",)).fetchone()
         if not process_row:
             return
 
         record_no = f"COST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         record_id = conn.execute(
-            "INSERT INTO customs_cost_record (process_record_id, record_no, customs_fee, refund_fee, usd_amount, usd_rate, other_fees, total_qty, total_base, per_unit_cost, note, created_by) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO customs_cost_record (business_id, process_record_id, record_no, customs_fee, refund_fee, usd_amount, usd_rate, other_fees, total_qty, total_base, per_unit_cost, note, created_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
+                int(process_row[1]) if process_row[1] else None,
                 int(process_row[0]),
                 record_no,
                 "125000.00",

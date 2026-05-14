@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, g, request
 
 from app.core.auth import jwt_required
 from app.core.responses import api_response
+from services import sync_process_record_for_business
 
 bp = Blueprint("cost_api", __name__)
 
@@ -160,8 +161,13 @@ def _get_cached_rate(db, conn, base: str, quote: str) -> dict[str, Any] | None:
 def _serialize_cost_record(row: dict[str, Any], items: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "id": int(row["id"]),
+        "business_id": row.get("business_id"),
         "process_record_id": row.get("process_record_id"),
         "record_no": row.get("record_no"),
+        "s_ref": row.get("s_ref"),
+        "customer_name": row.get("customer_name"),
+        "bl_no": row.get("bl_no"),
+        "goods_desc": row.get("goods_desc"),
         "customs_fee": _to_float(row.get("customs_fee")),
         "refund_fee": _to_float(row.get("refund_fee")),
         "usd_amount": _to_float(row.get("usd_amount")),
@@ -187,6 +193,81 @@ def _serialize_cost_record(row: dict[str, Any], items: list[dict[str, Any]]) -> 
             }
             for item in items
         ],
+    }
+
+
+def _get_fee_amount(row: dict[str, Any], key: str) -> float:
+    return _to_float(row.get(key))
+
+
+def _find_or_sync_process_record(db, conn, business_id: int) -> dict[str, Any] | None:
+    process_record = db.fetchone(
+        conn,
+        "SELECT * FROM customs_process_record WHERE business_id = " + db.placeholder + " ORDER BY id DESC LIMIT 1",
+        [business_id],
+    )
+    if process_record:
+        return process_record
+
+    business = db.fetchone(conn, "SELECT * FROM customs_business WHERE id = " + db.placeholder, [business_id])
+    if not business:
+        return None
+    fee_items = db.fetchall(
+        conn,
+        "SELECT * FROM customs_business_fee_item WHERE business_id = "
+        + db.placeholder
+        + " ORDER BY line_no, id",
+        [business_id],
+    )
+    return sync_process_record_for_business(db, conn, business, fee_items)
+
+
+def _build_business_cost_context(
+    business: dict[str, Any],
+    fee_items: list[dict[str, Any]],
+    process_record: dict[str, Any] | None,
+    latest_record: dict[str, Any] | None,
+) -> dict[str, Any]:
+    debit_total = sum(_get_fee_amount(item, "debit_amount") for item in fee_items)
+    credit_total = sum(_get_fee_amount(item, "credit_amount") for item in fee_items)
+    customs_fee = debit_total or _to_float(business.get("total_debit"))
+    refund_fee = credit_total if credit_total < customs_fee else 0.0
+
+    freight_currency = str(business.get("freight_currency") or "").upper()
+    cif_currency = str(business.get("cif_currency") or "").upper()
+    usd_amount = 0.0
+    if freight_currency == "USD":
+        usd_amount = _to_float(business.get("freight_amount"))
+    elif cif_currency == "USD":
+        usd_amount = _to_float(business.get("cif_amount"))
+
+    qty = _to_float(business.get("volume_count"), 0.0)
+    if qty <= 0:
+        qty = 1.0
+    product_name = business.get("cargo_desc") or business.get("goods_desc") or business.get("s_ref") or "Imported Cargo"
+
+    return {
+        "business": business,
+        "fee_items": fee_items,
+        "process_record": process_record,
+        "latest_record": latest_record,
+        "suggested_input": {
+            "business_id": int(business["id"]),
+            "process_record_id": int(process_record["id"]) if process_record else None,
+            "customs_fee": round(customs_fee, 4),
+            "refund_fee": round(refund_fee, 4),
+            "usd_amount": round(usd_amount, 4),
+            "usd_rate": round(_to_float(business.get("dollar_rate"), 0.0), 6),
+            "other_fees": 0.0,
+            "products": [{"name": product_name, "qty": qty}],
+        },
+        "source_summary": {
+            "fee_debit_total": round(debit_total, 4),
+            "fee_credit_total": round(credit_total, 4),
+            "business_total_debit": round(_to_float(business.get("total_debit")), 4),
+            "business_total_credit": round(_to_float(business.get("total_credit")), 4),
+            "business_balance": round(_to_float(business.get("balance_amount")), 4),
+        },
     }
 
 
@@ -313,6 +394,39 @@ def get_exchange_rate():
     )
 
 
+@bp.get("/api/cost/business/<int:business_id>/context")
+@jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
+def get_business_cost_context(business_id: int):
+    db = current_app.config["DB"]
+    with db.connection() as conn:
+        business = db.fetchone(conn, "SELECT * FROM customs_business WHERE id = " + db.placeholder, [business_id])
+        if not business:
+            return api_response({"error": "业务记录不存在"}, 404)
+        fee_items = db.fetchall(
+            conn,
+            "SELECT * FROM customs_business_fee_item WHERE business_id = "
+            + db.placeholder
+            + " ORDER BY line_no, id",
+            [business_id],
+        )
+        process_record = _find_or_sync_process_record(db, conn, business_id)
+        latest_record = db.fetchone(
+            conn,
+            "SELECT cr.*, b.s_ref, b.customer_name, p.bl_no, p.goods_desc "
+            "FROM customs_cost_record cr "
+            "LEFT JOIN customs_business b ON b.id = cr.business_id "
+            "LEFT JOIN customs_process_record p ON p.id = cr.process_record_id "
+            "WHERE cr.business_id = "
+            + db.placeholder
+            + " OR p.business_id = "
+            + db.placeholder
+            + " ORDER BY cr.created_time DESC, cr.id DESC LIMIT 1",
+            [business_id, business_id],
+        )
+
+    return api_response(_build_business_cost_context(business, fee_items, process_record, latest_record))
+
+
 @bp.post("/api/cost/calculate")
 @jwt_required("SUPER_ADMIN", "ADMIN", "FINANCE")
 def calculate_cost():
@@ -331,6 +445,14 @@ def create_cost_record():
     if not isinstance(payload, dict):
         return api_response({"error": "请求体必须是 JSON 对象"}, 400)
 
+    business_id_raw = payload.get("business_id")
+    business_id = None
+    if business_id_raw is not None:
+        try:
+            business_id = int(business_id_raw)
+        except Exception:
+            return api_response({"error": "business_id 必须是整数"}, 400)
+
     process_record_id_raw = payload.get("process_record_id")
     process_record_id = None
     if process_record_id_raw is not None:
@@ -345,20 +467,33 @@ def create_cost_record():
 
     db = current_app.config["DB"]
     with db.connection() as conn:
+        if business_id is not None:
+            business = db.fetchone(conn, "SELECT id FROM customs_business WHERE id = " + db.placeholder, [business_id])
+            if not business:
+                return api_response({"error": "业务记录不存在"}, 404)
+            if process_record_id is None:
+                process_record = _find_or_sync_process_record(db, conn, business_id)
+                process_record_id = int(process_record["id"]) if process_record else None
+
         if process_record_id is not None:
             process_record = db.fetchone(
                 conn,
-                "SELECT id FROM customs_process_record WHERE id = " + db.placeholder,
+                "SELECT id, business_id FROM customs_process_record WHERE id = " + db.placeholder,
                 [process_record_id],
             )
             if not process_record:
                 return api_response({"error": "流程记录不存在"}, 404)
+            if business_id is None and process_record.get("business_id"):
+                business_id = int(process_record["business_id"])
+            if business_id is not None and process_record.get("business_id") and int(process_record["business_id"]) != business_id:
+                return api_response({"error": "流程记录不属于所选业务"}, 400)
 
         record_no = f"COST-{now_str}"
         record_id = db.insert(
             conn,
             "customs_cost_record",
             {
+                "business_id": business_id,
                 "process_record_id": process_record_id,
                 "record_no": record_no,
                 "customs_fee": calculated["input"]["customs_fee"],
@@ -391,9 +526,11 @@ def create_cost_record():
 
         row = db.fetchone(
             conn,
-            "SELECT cr.*, u.real_name AS created_by_name "
+            "SELECT cr.*, u.real_name AS created_by_name, b.s_ref, b.customer_name, p.bl_no, p.goods_desc "
             "FROM customs_cost_record cr "
             "LEFT JOIN users u ON u.id = cr.created_by "
+            "LEFT JOIN customs_business b ON b.id = cr.business_id "
+            "LEFT JOIN customs_process_record p ON p.id = cr.process_record_id "
             "WHERE cr.id = " + db.placeholder,
             [record_id],
         )
@@ -419,24 +556,38 @@ def list_cost_records():
     except Exception:
         return api_response({"error": "limit/offset 必须是整数"}, 400)
     process_record_id_raw = request.args.get("process_record_id")
+    business_id_raw = request.args.get("business_id")
     where_sql = ""
     params: list[Any] = []
+    where_parts: list[str] = []
 
     if process_record_id_raw:
         try:
             process_record_id = int(process_record_id_raw)
         except Exception:
             return api_response({"error": "process_record_id 必须是整数"}, 400)
-        where_sql = " WHERE cr.process_record_id = " + db.placeholder
+        where_parts.append("cr.process_record_id = " + db.placeholder)
         params.append(process_record_id)
+    if business_id_raw:
+        try:
+            business_id = int(business_id_raw)
+        except Exception:
+            return api_response({"error": "business_id 必须是整数"}, 400)
+        where_parts.append("(cr.business_id = " + db.placeholder + " OR p.business_id = " + db.placeholder + ")")
+        params.extend([business_id, business_id])
+
+    if where_parts:
+        where_sql = " WHERE " + " AND ".join(where_parts)
 
     with db.connection() as conn:
         rows = db.fetchall(
             conn,
-            "SELECT cr.id, cr.process_record_id, cr.record_no, cr.total_qty, cr.total_base, cr.per_unit_cost, "
-            "cr.currency, cr.created_by, cr.created_time, u.real_name AS created_by_name "
+            "SELECT cr.id, cr.business_id, cr.process_record_id, cr.record_no, cr.total_qty, cr.total_base, cr.per_unit_cost, "
+            "cr.currency, cr.created_by, cr.created_time, u.real_name AS created_by_name, b.s_ref, b.customer_name, p.bl_no, p.goods_desc "
             "FROM customs_cost_record cr "
-            "LEFT JOIN users u ON u.id = cr.created_by"
+            "LEFT JOIN users u ON u.id = cr.created_by "
+            "LEFT JOIN customs_business b ON b.id = cr.business_id "
+            "LEFT JOIN customs_process_record p ON p.id = cr.process_record_id"
             + where_sql
             + " ORDER BY cr.created_time DESC, cr.id DESC LIMIT "
             + db.placeholder
@@ -446,15 +597,22 @@ def list_cost_records():
         )
         total_row = db.fetchone(
             conn,
-            "SELECT COUNT(*) AS total FROM customs_cost_record cr" + where_sql,
+            "SELECT COUNT(*) AS total FROM customs_cost_record cr "
+            "LEFT JOIN customs_process_record p ON p.id = cr.process_record_id"
+            + where_sql,
             params,
         )
 
     items = [
         {
             "id": int(row["id"]),
+            "business_id": row.get("business_id"),
             "process_record_id": row.get("process_record_id"),
             "record_no": row.get("record_no"),
+            "s_ref": row.get("s_ref"),
+            "customer_name": row.get("customer_name"),
+            "bl_no": row.get("bl_no"),
+            "goods_desc": row.get("goods_desc"),
             "total_qty": _to_float(row.get("total_qty")),
             "total_base": _to_float(row.get("total_base")),
             "per_unit_cost": _to_float(row.get("per_unit_cost")),
@@ -482,9 +640,11 @@ def get_cost_record(record_id: int):
     with db.connection() as conn:
         row = db.fetchone(
             conn,
-            "SELECT cr.*, u.real_name AS created_by_name "
+            "SELECT cr.*, u.real_name AS created_by_name, b.s_ref, b.customer_name, p.bl_no, p.goods_desc "
             "FROM customs_cost_record cr "
             "LEFT JOIN users u ON u.id = cr.created_by "
+            "LEFT JOIN customs_business b ON b.id = cr.business_id "
+            "LEFT JOIN customs_process_record p ON p.id = cr.process_record_id "
             "WHERE cr.id = " + db.placeholder,
             [record_id],
         )

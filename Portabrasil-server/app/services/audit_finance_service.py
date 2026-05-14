@@ -165,6 +165,48 @@ def _fetch_cost_record(db, cost_record_id: int) -> tuple[dict[str, Any] | None, 
     return record, items
 
 
+def _fetch_latest_cost_record_for_business(db, business_id: int) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    with db.connection() as conn:
+        record = db.fetchone(
+            conn,
+            "SELECT cr.* FROM customs_cost_record cr "
+            "LEFT JOIN customs_process_record p ON p.id = cr.process_record_id "
+            "WHERE cr.business_id = "
+            + db.placeholder
+            + " OR p.business_id = "
+            + db.placeholder
+            + " ORDER BY cr.created_time DESC, cr.id DESC LIMIT 1",
+            [business_id, business_id],
+        )
+        if not record:
+            return None, []
+        items = db.fetchall(
+            conn,
+            "SELECT id, line_no, product_name, qty, allocation_cost, unit_cost "
+            "FROM customs_cost_item WHERE cost_record_id = "
+            + db.placeholder
+            + " ORDER BY line_no ASC, id ASC",
+            [record["id"]],
+        )
+    return record, items
+
+
+def _cost_record_matches_business(db, cost_record: dict[str, Any], business_id: int) -> bool:
+    direct_business_id = cost_record.get("business_id")
+    if direct_business_id is not None and int(direct_business_id) == business_id:
+        return True
+    process_record_id = cost_record.get("process_record_id")
+    if process_record_id is None:
+        return direct_business_id is None
+    with db.connection() as conn:
+        process = db.fetchone(
+            conn,
+            "SELECT business_id FROM customs_process_record WHERE id = " + db.placeholder,
+            [process_record_id],
+        )
+    return bool(process and process.get("business_id") and int(process["business_id"]) == business_id)
+
+
 def _fetch_business(db, business_id: int) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     with db.connection() as conn:
         business = db.fetchone(
@@ -519,6 +561,12 @@ def run_audit_review(
         cost_record, _ = _fetch_cost_record(db, cost_record_id)
         if not cost_record:
             raise LookupError("成本记录不存在")
+        if not _cost_record_matches_business(db, cost_record, business_id):
+            raise ValueError("成本记录不属于该业务")
+    else:
+        cost_record, _ = _fetch_latest_cost_record_for_business(db, business_id)
+        if cost_record:
+            cost_record_id = int(cost_record["id"])
 
     snapshot = {
         "business": business,
